@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sélection de sites — PIG & EPN</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+  <!-- noUiSlider -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f4f4f4;
+      --panel: #ffffff;
+      --border: #dde2e8;
+      --text: #2c3e50;
+      --text-muted: #7f8c8d;
+      --accent: #2d6a4f;
+      --accent2: #1b4332;
+      --shadow: 0 2px 8px rgba(0,0,0,0.10);
+      --radius: 8px;
+      --pig-color: #e07b39;
+      --epn-color: #3a7eca;
+    }
+
+    html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; background: var(--bg); color: var(--text); }
+
+    #app { display: flex; height: 100vh; }
+
+    /* ─── PANNEAU GAUCHE ─── */
+    #controls {
+      width: 50%;
+      min-width: 320px;
+      max-width: 560px;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.06);
+      z-index: 10;
+    }
+
+    #controls-header {
+      background: var(--accent2);
+      color: #fff;
+      padding: 18px 22px 14px;
+      flex-shrink: 0;
+    }
+    #controls-header h1 { font-size: 16px; font-weight: 700; letter-spacing: 0.3px; }
+    #controls-header p  { font-size: 11.5px; margin-top: 4px; opacity: 0.78; }
+
+    #controls-body { padding: 18px 22px; display: flex; flex-direction: column; gap: 20px; }
+
+    /* sections */
+    .section {
+      background: #f8f9fa;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    /* selects */
+    .field-group { display: flex; flex-direction: column; gap: 5px; }
+    .field-label { font-size: 12.5px; font-weight: 600; color: var(--text); }
+    select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: #fff;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 30px;
+    }
+    select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(45,106,79,0.15); }
+
+    /* slider */
+    #slider-section { display: none; }
+    #slider-wrap { padding: 10px 6px 6px; }
+    .slider-labels { display: flex; justify-content: space-between; margin-top: 14px; }
+    .slider-val-box {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+    }
+    .slider-val-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+    .slider-val-num {
+      font-size: 14px; font-weight: 700; color: var(--accent2);
+      background: #fff; border: 1px solid var(--border);
+      border-radius: 5px; padding: 3px 10px; min-width: 64px; text-align: center;
+    }
+
+    /* noUiSlider overrides */
+    .noUi-target { background: #e0e6ea; border: none; box-shadow: none; height: 6px; }
+    .noUi-connect { background: var(--accent); }
+    .noUi-handle {
+      width: 18px !important; height: 18px !important;
+      top: -6px !important; right: -9px !important;
+      border-radius: 50%; background: #fff;
+      border: 2px solid var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+      cursor: grab;
+    }
+    .noUi-handle::before, .noUi-handle::after { display: none; }
+
+    /* stats */
+    #stats-bar {
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .stat-pill {
+      background: #fff; border: 1px solid var(--border);
+      border-radius: 20px; padding: 4px 12px;
+      font-size: 12px; display: flex; align-items: center; gap: 6px;
+    }
+    .stat-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .stat-pill strong { font-weight: 700; }
+
+    /* export button */
+    #btn-export {
+      width: 100%;
+      padding: 11px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 13.5px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      transition: background 0.18s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    #btn-export:hover { background: var(--accent2); }
+    #btn-export svg { flex-shrink: 0; }
+
+    /* ─── PANNEAU DROIT (carte) ─── */
+    #map-panel { flex: 1; position: relative; }
+    #map { width: 100%; height: 100%; }
+
+    /* légende carte */
+    #map-legend {
+      position: absolute;
+      bottom: 28px; right: 12px;
+      background: rgba(255,255,255,0.95);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      z-index: 999;
+      box-shadow: var(--shadow);
+      min-width: 130px;
+    }
+    .legend-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); margin-bottom: 7px; }
+    .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12.5px; margin-bottom: 4px; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,0.15); flex-shrink: 0; }
+
+    /* légende gradient */
+    #gradient-legend {
+      position: absolute;
+      bottom: 28px; left: 12px;
+      background: rgba(255,255,255,0.95);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      z-index: 999;
+      box-shadow: var(--shadow);
+      display: none;
+      min-width: 300px;
+    }
+    #grad-bar {
+      height: 18px; border-radius: 5px;
+      margin: 6px 0 4px;
+      background: linear-gradient(to right, rgb(0,0,255), rgb(0,220,255), rgb(0,255,50), rgb(255,230,0), rgb(255,50,0), rgb(200,0,10));
+    }
+    .grad-minmax { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); font-weight: 600; }
+    .grad-stops { display: flex; justify-content: space-between; margin-top: 8px; }
+    .grad-stop { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .grad-stop-dot { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,0.18); flex-shrink: 0; }
+    .grad-stop-label { font-size: 9.5px; color: var(--text-muted); font-weight: 700; }
+
+    /* tooltip Leaflet */
+    .leaflet-tooltip {
+      background: rgba(30,30,30,0.88) !important;
+      border: none !important;
+      color: #fff !important;
+      font-size: 12px !important;
+      border-radius: 5px !important;
+      padding: 5px 9px !important;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;
+      pointer-events: none !important;
+    }
+    .leaflet-tooltip::before { border-top-color: rgba(30,30,30,0.88) !important; }
+    .tt-id { font-weight: 700; font-size: 13px; }
+    .tt-name { opacity: 0.8; font-size: 11px; }
+    .tt-val { margin-top: 3px; font-size: 12px; }
+    .tt-val span { font-weight: 700; color: #7ecfff; }
+
+    /* modal export */
+    #export-modal {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 9999;
+      align-items: center; justify-content: center;
+    }
+    #export-modal.open { display: flex; }
+    #export-box {
+      background: #fff; border-radius: var(--radius);
+      padding: 24px 28px;
+      width: 340px; max-width: 94vw;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+    }
+    #export-box h2 { font-size: 15px; margin-bottom: 14px; color: var(--text); }
+    #export-box label { font-size: 12.5px; font-weight: 600; display: block; margin-bottom: 5px; }
+    #export-filename {
+      width: 100%; padding: 8px 10px;
+      border: 1px solid var(--border); border-radius: 5px;
+      font-size: 13px; color: var(--text);
+    }
+    #export-filename:focus { outline: none; border-color: var(--accent); }
+    .modal-hint { font-size: 11.5px; color: var(--text-muted); margin-top: 5px; }
+    .modal-btns { display: flex; gap: 10px; margin-top: 18px; }
+    .modal-btns button {
+      flex: 1; padding: 9px; border-radius: 5px; font-size: 13px; font-weight: 700; cursor: pointer; border: none;
+    }
+    #btn-cancel { background: #eee; color: var(--text); }
+    #btn-dl { background: var(--accent); color: #fff; }
+    #btn-dl:hover { background: var(--accent2); }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ════════════════ PANNEAU GAUCHE ════════════════ -->
+  <div id="controls">
+    <div id="controls-header">
+      <h1>Sélection de sites forestiers</h1>
+      <p>PIG — Pin gris &nbsp;·&nbsp; EPN — Épinette noire &nbsp;·&nbsp; Données sol (0–5 cm)</p>
+    </div>
+
+    <div id="controls-body">
+
+      <!-- Stats -->
+      <div class="section">
+        <div class="section-title">Points affichés</div>
+        <div id="stats-bar">
+          <div class="stat-pill">
+            <div class="stat-dot" style="background:var(--pig-color)"></div>
+            PIG : <strong id="stat-pig">–</strong>
+          </div>
+          <div class="stat-pill">
+            <div class="stat-dot" style="background:var(--epn-color)"></div>
+            EPN : <strong id="stat-epn">–</strong>
+          </div>
+          <div class="stat-pill">
+            Total : <strong id="stat-total">–</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Menu 1 — Espèce -->
+      <div class="section">
+        <div class="section-title">Filtre 1 — Espèce</div>
+        <div class="field-group">
+          <label class="field-label" for="sel-species">Espèce affichée</label>
+          <select id="sel-species">
+            <option value="ALL">Toutes les espèces (PIG + EPN)</option>
+            <option value="PIG">PIG — Pin gris</option>
+            <option value="EPN">EPN — Épinette noire</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Menu 2 — Variable -->
+      <div class="section">
+        <div class="section-title">Filtre 2 — Variable explicative</div>
+        <div class="field-group">
+          <label class="field-label" for="sel-var">Variable à visualiser</label>
+          <select id="sel-var">
+            <option value="">— Aucune sélection —</option>
+            <option value="N_05">N_05 — Azote total (0–5 cm)</option>
+            <option value="Clay05">Clay05 — Argile (0–5 cm)</option>
+            <option value="CoarseF05">CoarseF05 — Fractions grossières (0–5 cm)</option>
+            <option value="PHw05">PHw05 — pH eau (0–5 cm)</option>
+            <option value="Sand05">Sand05 — Sable (0–5 cm)</option>
+            <option value="SOC05">SOC05 — Carbone organique (0–5 cm)</option>
+            <option value="Silt05">Silt05 — Limon (0–5 cm)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Slider -->
+      <div class="section" id="slider-section">
+        <div class="section-title" id="slider-title">Filtre 3 — Plage de valeurs</div>
+        <div id="slider-wrap">
+          <div id="range-slider"></div>
+          <div class="slider-labels">
+            <div class="slider-val-box">
+              <div class="slider-val-label">⬅ MIN</div>
+              <div class="slider-val-num" id="val-min">–</div>
+            </div>
+            <div class="slider-val-box">
+              <div class="slider-val-label">MAX ➡</div>
+              <div class="slider-val-num" id="val-max">–</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export -->
+      <div class="section">
+        <div class="section-title">Export</div>
+        <button id="btn-export">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exporter la sélection (.csv)
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════════════ PANNEAU DROIT (carte) ════════════════ -->
+  <div id="map-panel">
+    <div id="map"></div>
+
+    <!-- Légende espèces -->
+    <div id="map-legend">
+      <div class="legend-title">Espèces</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--pig-color)"></div>PIG — Pin gris</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--epn-color)"></div>EPN — Épinette noire</div>
+    </div>
+
+    <!-- Légende gradient -->
+    <div id="gradient-legend">
+      <div class="legend-title" id="grad-varname">Variable</div>
+      <div id="grad-bar"></div>
+      <div class="grad-minmax">
+        <span id="grad-min">–</span>
+        <span id="grad-max">–</span>
+      </div>
+      <div class="grad-stops">
+        <div class="grad-stop"><div class="grad-stop-dot" style="background:rgb(0,0,255)"></div><span class="grad-stop-label">Bleu</span></div>
+        <div class="grad-stop"><div class="grad-stop-dot" style="background:rgb(0,220,255)"></div><span class="grad-stop-label">Cyan</span></div>
+        <div class="grad-stop"><div class="grad-stop-dot" style="background:rgb(0,255,50)"></div><span class="grad-stop-label">Vert</span></div>
+        <div class="grad-stop"><div class="grad-stop-dot" style="background:rgb(255,230,0)"></div><span class="grad-stop-label">Jaune</span></div>
+        <div class="grad-stop"><div class="grad-stop-dot" style="background:rgb(255,50,0)"></div><span class="grad-stop-label">Orange</span></div>
+        <div class="grad-stop"><div class="grad-stop-dot" style="background:rgb(200,0,10)"></div><span class="grad-stop-label">Rouge</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal export -->
+<div id="export-modal">
+  <div id="export-box">
+    <h2>📄 Exporter la sélection</h2>
+    <label for="export-filename">Nom du fichier</label>
+    <input type="text" id="export-filename" value="selection_sites" />
+    <div class="modal-hint">L'extension .csv sera ajoutée automatiquement</div>
+    <div class="modal-btns">
+      <button id="btn-cancel">Annuler</button>
+      <button id="btn-dl">Télécharger</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  DONNÉES (intégrées)
+// ═══════════════════════════════════════════════════
+const GEOJSON_DATA = {"type":"FeatureCollection","features":[{"type":"Feature","properties":{"POINT_ID":"PID_1","Name":"PIG","POINT_X":-69.32239,"POINT_Y":47.72551,"N_05":703,"Clay05":208,"CoarseF05":72,"PHw05":49,"Sand05":382,"SOC05":1114,"Silt05":410},"geometry":{"type":"Point","coordinates":[-69.32239,47.72551]}},{"type":"Feature","properties":{"POINT_ID":"PID_2","Name":"PIG","POINT_X":-75.75239,"POINT_Y":51.69328,"N_05":715,"Clay05":125,"CoarseF05":136,"PHw05":52,"Sand05":567,"SOC05":293,"Silt05":308},"geometry":{"type":"Point","coordinates":[-75.75239,51.69328]}},{"type":"Feature","properties":{"POINT_ID":"PID_3","Name":"PIG","POINT_X":-75.87527,"POINT_Y":51.68525,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-75.87527,51.68525]}},{"type":"Feature","properties":{"POINT_ID":"PID_4","Name":"PIG","POINT_X":-75.87525,"POINT_Y":51.68433,"N_05":743,"Clay05":121,"CoarseF05":141,"PHw05":52,"Sand05":612,"SOC05":201,"Silt05":267},"geometry":{"type":"Point","coordinates":[-75.87525,51.68433]}},{"type":"Feature","properties":{"POINT_ID":"PID_5","Name":"PIG","POINT_X":-75.75242,"POINT_Y":51.69292,"N_05":715,"Clay05":125,"CoarseF05":136,"PHw05":52,"Sand05":567,"SOC05":293,"Silt05":308},"geometry":{"type":"Point","coordinates":[-75.75242,51.69292]}},{"type":"Feature","properties":{"POINT_ID":"PID_6","Name":"PIG","POINT_X":-76.21667,"POINT_Y":46.26667,"N_05":631,"Clay05":255,"CoarseF05":78,"PHw05":53,"Sand05":327,"SOC05":629,"Silt05":418},"geometry":{"type":"Point","coordinates":[-76.21667,46.26667]}},{"type":"Feature","properties":{"POINT_ID":"PID_7","Name":"PIG","POINT_X":-74.2,"POINT_Y":46.3,"N_05":781,"Clay05":169,"CoarseF05":59,"PHw05":55,"Sand05":412,"SOC05":1236,"Silt05":419},"geometry":{"type":"Point","coordinates":[-74.2,46.3]}},{"type":"Feature","properties":{"POINT_ID":"PID_8","Name":"PIG","POINT_X":-73.16666,"POINT_Y":46.6,"N_05":779,"Clay05":164,"CoarseF05":74,"PHw05":48,"Sand05":487,"SOC05":1129,"Silt05":349},"geometry":{"type":"Point","coordinates":[-73.16666,46.6]}},{"type":"Feature","properties":{"POINT_ID":"PID_9","Name":"PIG","POINT_X":-79.05,"POINT_Y":47.33333,"N_05":485,"Clay05":202,"CoarseF05":97,"PHw05":53,"Sand05":416,"SOC05":518,"Silt05":382},"geometry":{"type":"Point","coordinates":[-79.05,47.33333]}},{"type":"Feature","properties":{"POINT_ID":"PID_10","Name":"PIG","POINT_X":-71.0,"POINT_Y":48.26667,"N_05":608,"Clay05":236,"CoarseF05":107,"PHw05":51,"Sand05":470,"SOC05":985,"Silt05":293},"geometry":{"type":"Point","coordinates":[-71.0,48.26667]}},{"type":"Feature","properties":{"POINT_ID":"PID_11","Name":"PIG","POINT_X":-75.33334,"POINT_Y":47.41667,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-75.33334,47.41667]}},{"type":"Feature","properties":{"POINT_ID":"PID_12","Name":"PIG","POINT_X":-73.9,"POINT_Y":46.9,"N_05":648,"Clay05":167,"CoarseF05":121,"PHw05":50,"Sand05":419,"SOC05":863,"Silt05":414},"geometry":{"type":"Point","coordinates":[-73.9,46.9]}},{"type":"Feature","properties":{"POINT_ID":"PID_13","Name":"PIG","POINT_X":-78.08334,"POINT_Y":47.58333,"N_05":521,"Clay05":198,"CoarseF05":127,"PHw05":52,"Sand05":449,"SOC05":635,"Silt05":353},"geometry":{"type":"Point","coordinates":[-78.08334,47.58333]}},{"type":"Feature","properties":{"POINT_ID":"PID_14","Name":"PIG","POINT_X":-75.2,"POINT_Y":46.78333,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-75.2,46.78333]}},{"type":"Feature","properties":{"POINT_ID":"PID_15","Name":"PIG","POINT_X":-75.1,"POINT_Y":45.88334,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-75.1,45.88334]}},{"type":"Feature","properties":{"POINT_ID":"PID_16","Name":"PIG","POINT_X":-69.25,"POINT_Y":48.7,"N_05":771,"Clay05":189,"CoarseF05":103,"PHw05":47,"Sand05":449,"SOC05":1155,"Silt05":362},"geometry":{"type":"Point","coordinates":[-69.25,48.7]}},{"type":"Feature","properties":{"POINT_ID":"PID_17","Name":"PIG","POINT_X":-72.66666,"POINT_Y":46.41667,"N_05":622,"Clay05":196,"CoarseF05":57,"PHw05":51,"Sand05":448,"SOC05":1002,"Silt05":356},"geometry":{"type":"Point","coordinates":[-72.66666,46.41667]}},{"type":"Feature","properties":{"POINT_ID":"PID_18","Name":"PIG","POINT_X":-72.28333,"POINT_Y":46.4,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-72.28333,46.4]}},{"type":"Feature","properties":{"POINT_ID":"PID_19","Name":"PIG","POINT_X":-68.86667,"POINT_Y":48.3,"N_05":506,"Clay05":238,"CoarseF05":80,"PHw05":62,"Sand05":396,"SOC05":522,"Silt05":366},"geometry":{"type":"Point","coordinates":[-68.86667,48.3]}},{"type":"Feature","properties":{"POINT_ID":"PID_20","Name":"PIG","POINT_X":-75.01667,"POINT_Y":45.83333,"N_05":795,"Clay05":237,"CoarseF05":56,"PHw05":52,"Sand05":406,"SOC05":851,"Silt05":357},"geometry":{"type":"Point","coordinates":[-75.01667,45.83333]}},{"type":"Feature","properties":{"POINT_ID":"PID_21","Name":"PIG","POINT_X":-75.48333,"POINT_Y":46.15,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-75.48333,46.15]}},{"type":"Feature","properties":{"POINT_ID":"PID_22","Name":"PIG","POINT_X":-72.83334,"POINT_Y":49.08333,"N_05":527,"Clay05":261,"CoarseF05":120,"PHw05":51,"Sand05":306,"SOC05":643,"Silt05":433},"geometry":{"type":"Point","coordinates":[-72.83334,49.08333]}},{"type":"Feature","properties":{"POINT_ID":"PID_23","Name":"PIG","POINT_X":-78.18333,"POINT_Y":48.35,"N_05":467,"Clay05":170,"CoarseF05":97,"PHw05":52,"Sand05":463,"SOC05":519,"Silt05":367},"geometry":{"type":"Point","coordinates":[-78.18333,48.35]}},{"type":"Feature","properties":{"POINT_ID":"PID_24","Name":"PIG","POINT_X":-78.88333,"POINT_Y":49.13334,"N_05":566,"Clay05":103,"CoarseF05":117,"PHw05":54,"Sand05":576,"SOC05":483,"Silt05":322},"geometry":{"type":"Point","coordinates":[-78.88333,49.13334]}},{"type":"Feature","properties":{"POINT_ID":"PID_25","Name":"PIG","POINT_X":-72.66666,"POINT_Y":48.58333,"N_05":519,"Clay05":183,"CoarseF05":93,"PHw05":54,"Sand05":355,"SOC05":612,"Silt05":462},"geometry":{"type":"Point","coordinates":[-72.66666,48.58333]}},{"type":"Feature","properties":{"POINT_ID":"PID_26","Name":"PIG","POINT_X":-76.16666,"POINT_Y":46.91667,"N_05":666,"Clay05":167,"CoarseF05":117,"PHw05":51,"Sand05":411,"SOC05":826,"Silt05":422},"geometry":{"type":"Point","coordinates":[-76.16666,46.91667]}},{"type":"Feature","properties":{"POINT_ID":"PID_27","Name":"PIG","POINT_X":-76.45,"POINT_Y":45.81667,"N_05":864,"Clay05":231,"CoarseF05":121,"PHw05":53,"Sand05":292,"SOC05":1012,"Silt05":477},"geometry":{"type":"Point","coordinates":[-76.45,45.81667]}},{"type":"Feature","properties":{"POINT_ID":"PID_28","Name":"PIG","POINT_X":-76.08334,"POINT_Y":45.93333,"N_05":682,"Clay05":287,"CoarseF05":61,"PHw05":56,"Sand05":335,"SOC05":989,"Silt05":377},"geometry":{"type":"Point","coordinates":[-76.08334,45.93333]}},{"type":"Feature","properties":{"POINT_ID":"PID_29","Name":"PIG","POINT_X":-76.26667,"POINT_Y":46.15,"N_05":578,"Clay05":215,"CoarseF05":67,"PHw05":53,"Sand05":349,"SOC05":708,"Silt05":436},"geometry":{"type":"Point","coordinates":[-76.26667,46.15]}},{"type":"Feature","properties":{"POINT_ID":"PID_30","Name":"PIG","POINT_X":-77.2,"POINT_Y":48.65,"N_05":466,"Clay05":195,"CoarseF05":83,"PHw05":53,"Sand05":457,"SOC05":720,"Silt05":348},"geometry":{"type":"Point","coordinates":[-77.2,48.65]}},{"type":"Feature","properties":{"POINT_ID":"PID_31","Name":"PIG","POINT_X":-77.9,"POINT_Y":48.08333,"N_05":432,"Clay05":210,"CoarseF05":123,"PHw05":53,"Sand05":438,"SOC05":500,"Silt05":352},"geometry":{"type":"Point","coordinates":[-77.9,48.08333]}},{"type":"Feature","properties":{"POINT_ID":"PID_32","Name":"PIG","POINT_X":-76.96667,"POINT_Y":45.88334,"N_05":512,"Clay05":278,"CoarseF05":47,"PHw05":56,"Sand05":312,"SOC05":745,"Silt05":409},"geometry":{"type":"Point","coordinates":[-76.96667,45.88334]}},{"type":"Feature","properties":{"POINT_ID":"PID_33","Name":"PIG","POINT_X":-77.66666,"POINT_Y":48.91667,"N_05":680,"Clay05":139,"CoarseF05":117,"PHw05":53,"Sand05":508,"SOC05":518,"Silt05":353},"geometry":{"type":"Point","coordinates":[-77.66666,48.91667]}},{"type":"Feature","properties":{"POINT_ID":"PID_34","Name":"PIG","POINT_X":-76.03333,"POINT_Y":46.9,"N_05":450,"Clay05":298,"CoarseF05":83,"PHw05":52,"Sand05":314,"SOC05":779,"Silt05":388},"geometry":{"type":"Point","coordinates":[-76.03333,46.9]}},{"type":"Feature","properties":{"POINT_ID":"PID_35","Name":"PIG","POINT_X":-75.13333,"POINT_Y":46.91667,"N_05":631,"Clay05":184,"CoarseF05":91,"PHw05":51,"Sand05":435,"SOC05":1016,"Silt05":381},"geometry":{"type":"Point","coordinates":[-75.13333,46.91667]}},{"type":"Feature","properties":{"POINT_ID":"PID_36","Name":"PIG","POINT_X":-77.98333,"POINT_Y":47.58333,"N_05":453,"Clay05":200,"CoarseF05":125,"PHw05":51,"Sand05":456,"SOC05":670,"Silt05":344},"geometry":{"type":"Point","coordinates":[-77.98333,47.58333]}},{"type":"Feature","properties":{"POINT_ID":"PID_37","Name":"PIG","POINT_X":-77.06667,"POINT_Y":45.9,"N_05":565,"Clay05":225,"CoarseF05":51,"PHw05":54,"Sand05":384,"SOC05":619,"Silt05":392},"geometry":{"type":"Point","coordinates":[-77.06667,45.9]}},{"type":"Feature","properties":{"POINT_ID":"PID_38","Name":"PIG","POINT_X":-76.35,"POINT_Y":45.83333,"N_05":561,"Clay05":253,"CoarseF05":51,"PHw05":56,"Sand05":298,"SOC05":734,"Silt05":449},"geometry":{"type":"Point","coordinates":[-76.35,45.83333]}},{"type":"Feature","properties":{"POINT_ID":"PID_39","Name":"PIG","POINT_X":-75.91666,"POINT_Y":46.75,"N_05":591,"Clay05":252,"CoarseF05":76,"PHw05":55,"Sand05":356,"SOC05":769,"Silt05":392},"geometry":{"type":"Point","coordinates":[-75.91666,46.75]}},{"type":"Feature","properties":{"POINT_ID":"PID_40","Name":"PIG","POINT_X":-70.83334,"POINT_Y":47.25,"N_05":986,"Clay05":110,"CoarseF05":69,"PHw05":42,"Sand05":555,"SOC05":1517,"Silt05":335},"geometry":{"type":"Point","coordinates":[-70.83334,47.25]}},{"type":"Feature","properties":{"POINT_ID":"PID_41","Name":"PIG","POINT_X":-72.58334,"POINT_Y":48.83333,"N_05":570,"Clay05":287,"CoarseF05":101,"PHw05":60,"Sand05":212,"SOC05":547,"Silt05":501},"geometry":{"type":"Point","coordinates":[-72.58334,48.83333]}},{"type":"Feature","properties":{"POINT_ID":"PID_42","Name":"PIG","POINT_X":-75.5,"POINT_Y":46.08333,"N_05":1038,"Clay05":120,"CoarseF05":71,"PHw05":50,"Sand05":471,"SOC05":1381,"Silt05":409},"geometry":{"type":"Point","coordinates":[-75.5,46.08333]}},{"type":"Feature","properties":{"POINT_ID":"PID_43","Name":"PIG","POINT_X":-75.08334,"POINT_Y":45.91667,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-75.08334,45.91667]}},{"type":"Feature","properties":{"POINT_ID":"PID_44","Name":"PIG","POINT_X":-72.5,"POINT_Y":48.41667,"N_05":631,"Clay05":241,"CoarseF05":111,"PHw05":54,"Sand05":344,"SOC05":616,"Silt05":416},"geometry":{"type":"Point","coordinates":[-72.5,48.41667]}},{"type":"Feature","properties":{"POINT_ID":"PID_45","Name":"PIG","POINT_X":-74.85,"POINT_Y":46.38334,"N_05":636,"Clay05":206,"CoarseF05":72,"PHw05":55,"Sand05":348,"SOC05":985,"Silt05":446},"geometry":{"type":"Point","coordinates":[-74.85,46.38334]}},{"type":"Feature","properties":{"POINT_ID":"PID_46","Name":"PIG","POINT_X":-74.0,"POINT_Y":47.88334,"N_05":645,"Clay05":221,"CoarseF05":107,"PHw05":54,"Sand05":440,"SOC05":425,"Silt05":339},"geometry":{"type":"Point","coordinates":[-74.0,47.88334]}},{"type":"Feature","properties":{"POINT_ID":"PID_47","Name":"PIG","POINT_X":-71.71667,"POINT_Y":48.95,"N_05":691,"Clay05":252,"CoarseF05":117,"PHw05":51,"Sand05":377,"SOC05":689,"Silt05":371},"geometry":{"type":"Point","coordinates":[-71.71667,48.95]}},{"type":"Feature","properties":{"POINT_ID":"PID_48","Name":"PIG","POINT_X":-76.0,"POINT_Y":49.01667,"N_05":632,"Clay05":196,"CoarseF05":119,"PHw05":53,"Sand05":355,"SOC05":463,"Silt05":450},"geometry":{"type":"Point","coordinates":[-76.0,49.01667]}},{"type":"Feature","properties":{"POINT_ID":"PID_49","Name":"PIG","POINT_X":-70.43333,"POINT_Y":47.8,"N_05":821,"Clay05":200,"CoarseF05":108,"PHw05":50,"Sand05":393,"SOC05":1209,"Silt05":407},"geometry":{"type":"Point","coordinates":[-70.43333,47.8]}},{"type":"Feature","properties":{"POINT_ID":"PID_50","Name":"PIG","POINT_X":-74.68333,"POINT_Y":45.65,"N_05":844,"Clay05":250,"CoarseF05":79,"PHw05":53,"Sand05":426,"SOC05":1285,"Silt05":324},"geometry":{"type":"Point","coordinates":[-74.68333,45.65]}},{"type":"Feature","properties":{"POINT_ID":"PID_51","Name":"PIG","POINT_X":-72.63333,"POINT_Y":48.76667,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-72.63333,48.76667]}},{"type":"Feature","properties":{"POINT_ID":"PID_52","Name":"PIG","POINT_X":-70.45,"POINT_Y":49.73333,"N_05":763,"Clay05":180,"CoarseF05":145,"PHw05":52,"Sand05":460,"SOC05":371,"Silt05":360},"geometry":{"type":"Point","coordinates":[-70.45,49.73333]}},{"type":"Feature","properties":{"POINT_ID":"PID_53","Name":"PIG","POINT_X":-74.86667,"POINT_Y":50.75,"N_05":655,"Clay05":126,"CoarseF05":152,"PHw05":52,"Sand05":519,"SOC05":283,"Silt05":355},"geometry":{"type":"Point","coordinates":[-74.86667,50.75]}},{"type":"Feature","properties":{"POINT_ID":"PID_54","Name":"PIG","POINT_X":-69.16666,"POINT_Y":49.75,"N_05":603,"Clay05":144,"CoarseF05":141,"PHw05":54,"Sand05":493,"SOC05":590,"Silt05":362},"geometry":{"type":"Point","coordinates":[-69.16666,49.75]}},{"type":"Feature","properties":{"POINT_ID":"PID_55","Name":"PIG","POINT_X":-77.18333,"POINT_Y":48.55,"N_05":489,"Clay05":221,"CoarseF05":105,"PHw05":51,"Sand05":434,"SOC05":999,"Silt05":345},"geometry":{"type":"Point","coordinates":[-77.18333,48.55]}},{"type":"Feature","properties":{"POINT_ID":"PID_56","Name":"PIG","POINT_X":-78.75,"POINT_Y":49.01667,"N_05":591,"Clay05":162,"CoarseF05":129,"PHw05":54,"Sand05":465,"SOC05":425,"Silt05":373},"geometry":{"type":"Point","coordinates":[-78.75,49.01667]}},{"type":"Feature","properties":{"POINT_ID":"PID_57","Name":"PIG","POINT_X":-76.23333,"POINT_Y":48.25,"N_05":542,"Clay05":213,"CoarseF05":84,"PHw05":51,"Sand05":399,"SOC05":589,"Silt05":388},"geometry":{"type":"Point","coordinates":[-76.23333,48.25]}},{"type":"Feature","properties":{"POINT_ID":"PID_58","Name":"PIG","POINT_X":-73.1,"POINT_Y":50.85,"N_05":601,"Clay05":184,"CoarseF05":137,"PHw05":53,"Sand05":523,"SOC05":382,"Silt05":293},"geometry":{"type":"Point","coordinates":[-73.1,50.85]}},{"type":"Feature","properties":{"POINT_ID":"PID_59","Name":"PIG","POINT_X":-74.38333,"POINT_Y":50.36666,"N_05":679,"Clay05":171,"CoarseF05":137,"PHw05":51,"Sand05":525,"SOC05":731,"Silt05":304},"geometry":{"type":"Point","coordinates":[-74.38333,50.36666]}},{"type":"Feature","properties":{"POINT_ID":"PID_60","Name":"PIG","POINT_X":-77.06667,"POINT_Y":45.91667,"N_05":585,"Clay05":260,"CoarseF05":99,"PHw05":58,"Sand05":375,"SOC05":774,"Silt05":365},"geometry":{"type":"Point","coordinates":[-77.06667,45.91667]}},{"type":"Feature","properties":{"POINT_ID":"PID_61","Name":"PIG","POINT_X":-72.58334,"POINT_Y":48.5,"N_05":549,"Clay05":206,"CoarseF05":107,"PHw05":51,"Sand05":379,"SOC05":496,"Silt05":415},"geometry":{"type":"Point","coordinates":[-72.58334,48.5]}},{"type":"Feature","properties":{"POINT_ID":"PID_62","Name":"PIG","POINT_X":-67.2,"POINT_Y":49.76667,"N_05":555,"Clay05":228,"CoarseF05":94,"PHw05":50,"Sand05":464,"SOC05":968,"Silt05":308},"geometry":{"type":"Point","coordinates":[-67.2,49.76667]}},{"type":"Feature","properties":{"POINT_ID":"PID_63","Name":"PIG","POINT_X":-73.1,"POINT_Y":46.85,"N_05":646,"Clay05":203,"CoarseF05":58,"PHw05":49,"Sand05":493,"SOC05":935,"Silt05":304},"geometry":{"type":"Point","coordinates":[-73.1,46.85]}},{"type":"Feature","properties":{"POINT_ID":"PID_64","Name":"PIG","POINT_X":-68.21667,"POINT_Y":49.75,"N_05":527,"Clay05":219,"CoarseF05":138,"PHw05":51,"Sand05":469,"SOC05":591,"Silt05":311},"geometry":{"type":"Point","coordinates":[-68.21667,49.75]}},{"type":"Feature","properties":{"POINT_ID":"PID_65","Name":"PIG","POINT_X":-75.58334,"POINT_Y":47.71667,"N_05":575,"Clay05":176,"CoarseF05":113,"PHw05":50,"Sand05":428,"SOC05":1020,"Silt05":396},"geometry":{"type":"Point","coordinates":[-75.58334,47.71667]}},{"type":"Feature","properties":{"POINT_ID":"PID_66","Name":"PIG","POINT_X":-73.75,"POINT_Y":48.0,"N_05":570,"Clay05":235,"CoarseF05":129,"PHw05":54,"Sand05":404,"SOC05":395,"Silt05":361},"geometry":{"type":"Point","coordinates":[-73.75,48.0]}},{"type":"Feature","properties":{"POINT_ID":"PID_67","Name":"PIG","POINT_X":-74.16666,"POINT_Y":47.83333,"N_05":647,"Clay05":167,"CoarseF05":136,"PHw05":52,"Sand05":463,"SOC05":733,"Silt05":370},"geometry":{"type":"Point","coordinates":[-74.16666,47.83333]}},{"type":"Feature","properties":{"POINT_ID":"PID_68","Name":"PIG","POINT_X":-69.83334,"POINT_Y":48.25,"N_05":660,"Clay05":241,"CoarseF05":85,"PHw05":57,"Sand05":381,"SOC05":781,"Silt05":378},"geometry":{"type":"Point","coordinates":[-69.83334,48.25]}},{"type":"Feature","properties":{"POINT_ID":"PID_69","Name":"PIG","POINT_X":-74.13333,"POINT_Y":47.66667,"N_05":539,"Clay05":161,"CoarseF05":118,"PHw05":52,"Sand05":509,"SOC05":806,"Silt05":331},"geometry":{"type":"Point","coordinates":[-74.13333,47.66667]}},{"type":"Feature","properties":{"POINT_ID":"PID_70","Name":"PIG","POINT_X":-73.8667,"POINT_Y":47.3,"N_05":546,"Clay05":188,"CoarseF05":135,"PHw05":52,"Sand05":440,"SOC05":682,"Silt05":372},"geometry":{"type":"Point","coordinates":[-73.8667,47.3]}},{"type":"Feature","properties":{"POINT_ID":"PID_71","Name":"PIG","POINT_X":-76.08334,"POINT_Y":48.81667,"N_05":593,"Clay05":202,"CoarseF05":125,"PHw05":52,"Sand05":378,"SOC05":532,"Silt05":420},"geometry":{"type":"Point","coordinates":[-76.08334,48.81667]}},{"type":"Feature","properties":{"POINT_ID":"PID_72","Name":"PIG","POINT_X":-72.5,"POINT_Y":46.66667,"N_05":632,"Clay05":199,"CoarseF05":42,"PHw05":59,"Sand05":425,"SOC05":595,"Silt05":376},"geometry":{"type":"Point","coordinates":[-72.5,46.66667]}},{"type":"Feature","properties":{"POINT_ID":"PID_73","Name":"PIG","POINT_X":-73.96667,"POINT_Y":47.91667,"N_05":614,"Clay05":183,"CoarseF05":123,"PHw05":55,"Sand05":437,"SOC05":547,"Silt05":380},"geometry":{"type":"Point","coordinates":[-73.96667,47.91667]}},{"type":"Feature","properties":{"POINT_ID":"PID_74","Name":"PIG","POINT_X":-75.9,"POINT_Y":46.53333,"N_05":628,"Clay05":288,"CoarseF05":86,"PHw05":52,"Sand05":335,"SOC05":877,"Silt05":377},"geometry":{"type":"Point","coordinates":[-75.9,46.53333]}},{"type":"Feature","properties":{"POINT_ID":"PID_75","Name":"PIG","POINT_X":-73.15,"POINT_Y":46.46667,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-73.15,46.46667]}},{"type":"Feature","properties":{"POINT_ID":"PID_76","Name":"PIG","POINT_X":-76.66666,"POINT_Y":48.91667,"N_05":487,"Clay05":208,"CoarseF05":106,"PHw05":52,"Sand05":317,"SOC05":337,"Silt05":476},"geometry":{"type":"Point","coordinates":[-76.66666,48.91667]}},{"type":"Feature","properties":{"POINT_ID":"PID_77","Name":"PIG","POINT_X":-76.21667,"POINT_Y":49.08333,"N_05":630,"Clay05":160,"CoarseF05":135,"PHw05":52,"Sand05":416,"SOC05":342,"Silt05":424},"geometry":{"type":"Point","coordinates":[-76.21667,49.08333]}},{"type":"Feature","properties":{"POINT_ID":"PID_78","Name":"PIG","POINT_X":-74.03333,"POINT_Y":48.53333,"N_05":584,"Clay05":224,"CoarseF05":123,"PHw05":53,"Sand05":415,"SOC05":584,"Silt05":361},"geometry":{"type":"Point","coordinates":[-74.03333,48.53333]}},{"type":"Feature","properties":{"POINT_ID":"PID_79","Name":"PIG","POINT_X":-73.31667,"POINT_Y":47.63334,"N_05":644,"Clay05":186,"CoarseF05":115,"PHw05":52,"Sand05":462,"SOC05":645,"Silt05":352},"geometry":{"type":"Point","coordinates":[-73.31667,47.63334]}},{"type":"Feature","properties":{"POINT_ID":"PID_80","Name":"PIG","POINT_X":-78.51667,"POINT_Y":49.01667,"N_05":477,"Clay05":141,"CoarseF05":128,"PHw05":54,"Sand05":480,"SOC05":402,"Silt05":379},"geometry":{"type":"Point","coordinates":[-78.51667,49.01667]}},{"type":"Feature","properties":{"POINT_ID":"PID_81","Name":"PIG","POINT_X":-73.26667,"POINT_Y":48.93333,"N_05":551,"Clay05":243,"CoarseF05":121,"PHw05":53,"Sand05":325,"SOC05":488,"Silt05":432},"geometry":{"type":"Point","coordinates":[-73.26667,48.93333]}},{"type":"Feature","properties":{"POINT_ID":"PID_82","Name":"PIG","POINT_X":-70.96667,"POINT_Y":49.58333,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-70.96667,49.58333]}},{"type":"Feature","properties":{"POINT_ID":"PID_83","Name":"PIG","POINT_X":-77.25,"POINT_Y":49.08333,"N_05":561,"Clay05":140,"CoarseF05":121,"PHw05":52,"Sand05":537,"SOC05":452,"Silt05":323},"geometry":{"type":"Point","coordinates":[-77.25,49.08333]}},{"type":"Feature","properties":{"POINT_ID":"PID_84","Name":"PIG","POINT_X":-78.08334,"POINT_Y":49.35,"N_05":430,"Clay05":203,"CoarseF05":86,"PHw05":53,"Sand05":500,"SOC05":520,"Silt05":297},"geometry":{"type":"Point","coordinates":[-78.08334,49.35]}},{"type":"Feature","properties":{"POINT_ID":"PID_85","Name":"PIG","POINT_X":-68.58334,"POINT_Y":50.16667,"N_05":692,"Clay05":142,"CoarseF05":131,"PHw05":54,"Sand05":535,"SOC05":1003,"Silt05":323},"geometry":{"type":"Point","coordinates":[-68.58334,50.16667]}},{"type":"Feature","properties":{"POINT_ID":"PID_86","Name":"PIG","POINT_X":-77.73333,"POINT_Y":48.91667,"N_05":518,"Clay05":167,"CoarseF05":130,"PHw05":52,"Sand05":504,"SOC05":563,"Silt05":329},"geometry":{"type":"Point","coordinates":[-77.73333,48.91667]}},{"type":"Feature","properties":{"POINT_ID":"PID_87","Name":"PIG","POINT_X":-74.9,"POINT_Y":49.8,"N_05":681,"Clay05":156,"CoarseF05":153,"PHw05":51,"Sand05":473,"SOC05":528,"Silt05":371},"geometry":{"type":"Point","coordinates":[-74.9,49.8]}},{"type":"Feature","properties":{"POINT_ID":"PID_88","Name":"PIG","POINT_X":-67.33334,"POINT_Y":49.41667,"N_05":557,"Clay05":179,"CoarseF05":70,"PHw05":51,"Sand05":469,"SOC05":548,"Silt05":352},"geometry":{"type":"Point","coordinates":[-67.33334,49.41667]}},{"type":"Feature","properties":{"POINT_ID":"PID_89","Name":"PIG","POINT_X":-73.15,"POINT_Y":48.85,"N_05":603,"Clay05":193,"CoarseF05":126,"PHw05":52,"Sand05":366,"SOC05":829,"Silt05":441},"geometry":{"type":"Point","coordinates":[-73.15,48.85]}},{"type":"Feature","properties":{"POINT_ID":"PID_90","Name":"PIG","POINT_X":-76.33334,"POINT_Y":48.66667,"N_05":564,"Clay05":226,"CoarseF05":121,"PHw05":51,"Sand05":357,"SOC05":523,"Silt05":417},"geometry":{"type":"Point","coordinates":[-76.33334,48.66667]}},{"type":"Feature","properties":{"POINT_ID":"PID_91","Name":"PIG","POINT_X":-78.5,"POINT_Y":48.66667,"N_05":391,"Clay05":148,"CoarseF05":84,"PHw05":52,"Sand05":508,"SOC05":470,"Silt05":344},"geometry":{"type":"Point","coordinates":[-78.5,48.66667]}},{"type":"Feature","properties":{"POINT_ID":"PID_92","Name":"PIG","POINT_X":-77.8,"POINT_Y":48.61666,"N_05":473,"Clay05":197,"CoarseF05":136,"PHw05":52,"Sand05":387,"SOC05":641,"Silt05":416},"geometry":{"type":"Point","coordinates":[-77.8,48.61666]}},{"type":"Feature","properties":{"POINT_ID":"PID_93","Name":"PIG","POINT_X":-79.46667,"POINT_Y":48.48333,"N_05":473,"Clay05":212,"CoarseF05":106,"PHw05":55,"Sand05":470,"SOC05":392,"Silt05":318},"geometry":{"type":"Point","coordinates":[-79.46667,48.48333]}},{"type":"Feature","properties":{"POINT_ID":"PID_94","Name":"PIG","POINT_X":-78.9,"POINT_Y":49.13334,"N_05":533,"Clay05":88,"CoarseF05":88,"PHw05":54,"Sand05":573,"SOC05":376,"Silt05":339},"geometry":{"type":"Point","coordinates":[-78.9,49.13334]}},{"type":"Feature","properties":{"POINT_ID":"PID_95","Name":"PIG","POINT_X":-76.41666,"POINT_Y":48.0,"N_05":669,"Clay05":196,"CoarseF05":138,"PHw05":52,"Sand05":409,"SOC05":771,"Silt05":395},"geometry":{"type":"Point","coordinates":[-76.41666,48.0]}},{"type":"Feature","properties":{"POINT_ID":"PID_96","Name":"PIG","POINT_X":-71.0,"POINT_Y":48.5,"N_05":538,"Clay05":195,"CoarseF05":90,"PHw05":51,"Sand05":425,"SOC05":966,"Silt05":380},"geometry":{"type":"Point","coordinates":[-71.0,48.5]}},{"type":"Feature","properties":{"POINT_ID":"PID_97","Name":"PIG","POINT_X":-72.53333,"POINT_Y":48.76667,"N_05":568,"Clay05":264,"CoarseF05":92,"PHw05":62,"Sand05":233,"SOC05":472,"Silt05":504},"geometry":{"type":"Point","coordinates":[-72.53333,48.76667]}},{"type":"Feature","properties":{"POINT_ID":"PID_98","Name":"PIG","POINT_X":-79.41666,"POINT_Y":47.83333,"N_05":451,"Clay05":238,"CoarseF05":107,"PHw05":52,"Sand05":404,"SOC05":439,"Silt05":358},"geometry":{"type":"Point","coordinates":[-79.41666,47.83333]}},{"type":"Feature","properties":{"POINT_ID":"PID_99","Name":"PIG","POINT_X":-79.45,"POINT_Y":47.8,"N_05":346,"Clay05":230,"CoarseF05":87,"PHw05":53,"Sand05":414,"SOC05":485,"Silt05":355},"geometry":{"type":"Point","coordinates":[-79.45,47.8]}},{"type":"Feature","properties":{"POINT_ID":"PID_100","Name":"PIG","POINT_X":-78.6,"POINT_Y":48.75,"N_05":576,"Clay05":174,"CoarseF05":111,"PHw05":53,"Sand05":425,"SOC05":360,"Silt05":401},"geometry":{"type":"Point","coordinates":[-78.6,48.75]}},{"type":"Feature","properties":{"POINT_ID":"PID_101","Name":"PIG","POINT_X":-78.36667,"POINT_Y":48.76667,"N_05":557,"Clay05":151,"CoarseF05":130,"PHw05":52,"Sand05":525,"SOC05":522,"Silt05":324},"geometry":{"type":"Point","coordinates":[-78.36667,48.76667]}},{"type":"Feature","properties":{"POINT_ID":"PID_102","Name":"PIG","POINT_X":-76.83334,"POINT_Y":48.08333,"N_05":536,"Clay05":214,"CoarseF05":97,"PHw05":55,"Sand05":426,"SOC05":519,"Silt05":360},"geometry":{"type":"Point","coordinates":[-76.83334,48.08333]}},{"type":"Feature","properties":{"POINT_ID":"PID_103","Name":"PIG","POINT_X":-79.43333,"POINT_Y":47.5,"N_05":626,"Clay05":289,"CoarseF05":120,"PHw05":53,"Sand05":268,"SOC05":733,"Silt05":443},"geometry":{"type":"Point","coordinates":[-79.43333,47.5]}},{"type":"Feature","properties":{"POINT_ID":"PID_104","Name":"PIG","POINT_X":-77.25,"POINT_Y":49.33333,"N_05":471,"Clay05":170,"CoarseF05":124,"PHw05":53,"Sand05":483,"SOC05":471,"Silt05":347},"geometry":{"type":"Point","coordinates":[-77.25,49.33333]}},{"type":"Feature","properties":{"POINT_ID":"PID_105","Name":"PIG","POINT_X":-79.41666,"POINT_Y":49.38334,"N_05":551,"Clay05":166,"CoarseF05":70,"PHw05":54,"Sand05":553,"SOC05":489,"Silt05":280},"geometry":{"type":"Point","coordinates":[-79.41666,49.38334]}},{"type":"Feature","properties":{"POINT_ID":"PID_106","Name":"PIG","POINT_X":-69.71667,"POINT_Y":48.78333,"N_05":818,"Clay05":231,"CoarseF05":117,"PHw05":56,"Sand05":381,"SOC05":1091,"Silt05":387},"geometry":{"type":"Point","coordinates":[-69.71667,48.78333]}},{"type":"Feature","properties":{"POINT_ID":"PID_107","Name":"PIG","POINT_X":-71.5,"POINT_Y":48.75,"N_05":554,"Clay05":258,"CoarseF05":102,"PHw05":52,"Sand05":344,"SOC05":775,"Silt05":398},"geometry":{"type":"Point","coordinates":[-71.5,48.75]}},{"type":"Feature","properties":{"POINT_ID":"PID_108","Name":"PIG","POINT_X":-73.16666,"POINT_Y":48.66667,"N_05":636,"Clay05":186,"CoarseF05":134,"PHw05":54,"Sand05":398,"SOC05":516,"Silt05":416},"geometry":{"type":"Point","coordinates":[-73.16666,48.66667]}},{"type":"Feature","properties":{"POINT_ID":"PID_109","Name":"PIG","POINT_X":-72.51667,"POINT_Y":48.73333,"N_05":524,"Clay05":259,"CoarseF05":95,"PHw05":55,"Sand05":280,"SOC05":522,"Silt05":461},"geometry":{"type":"Point","coordinates":[-72.51667,48.73333]}},{"type":"Feature","properties":{"POINT_ID":"PID_110","Name":"EPN","POINT_X":-69.48015,"POINT_Y":47.79617,"N_05":595,"Clay05":281,"CoarseF05":66,"PHw05":55,"Sand05":353,"SOC05":863,"Silt05":366},"geometry":{"type":"Point","coordinates":[-69.48015,47.79617]}},{"type":"Feature","properties":{"POINT_ID":"PID_111","Name":"EPN","POINT_X":-69.47907,"POINT_Y":47.79501,"N_05":579,"Clay05":314,"CoarseF05":66,"PHw05":52,"Sand05":328,"SOC05":1020,"Silt05":358},"geometry":{"type":"Point","coordinates":[-69.47907,47.79501]}},{"type":"Feature","properties":{"POINT_ID":"PID_112","Name":"EPN","POINT_X":-69.47799,"POINT_Y":47.79445,"N_05":579,"Clay05":314,"CoarseF05":66,"PHw05":52,"Sand05":328,"SOC05":1020,"Silt05":358},"geometry":{"type":"Point","coordinates":[-69.47799,47.79445]}},{"type":"Feature","properties":{"POINT_ID":"PID_113","Name":"EPN","POINT_X":-69.47646,"POINT_Y":47.79416,"N_05":567,"Clay05":318,"CoarseF05":69,"PHw05":52,"Sand05":333,"SOC05":1052,"Silt05":349},"geometry":{"type":"Point","coordinates":[-69.47646,47.79416]}},{"type":"Feature","properties":{"POINT_ID":"PID_114","Name":"EPN","POINT_X":-69.48,"POINT_Y":47.79359,"N_05":593,"Clay05":305,"CoarseF05":67,"PHw05":53,"Sand05":345,"SOC05":992,"Silt05":350},"geometry":{"type":"Point","coordinates":[-69.48,47.79359]}},{"type":"Feature","properties":{"POINT_ID":"PID_115","Name":"EPN","POINT_X":-69.47804,"POINT_Y":47.79301,"N_05":606,"Clay05":320,"CoarseF05":76,"PHw05":56,"Sand05":331,"SOC05":840,"Silt05":350},"geometry":{"type":"Point","coordinates":[-69.47804,47.79301]}},{"type":"Feature","properties":{"POINT_ID":"PID_116","Name":"EPN","POINT_X":-69.47592,"POINT_Y":47.79517,"N_05":567,"Clay05":318,"CoarseF05":69,"PHw05":52,"Sand05":333,"SOC05":1052,"Silt05":349},"geometry":{"type":"Point","coordinates":[-69.47592,47.79517]}},{"type":"Feature","properties":{"POINT_ID":"PID_117","Name":"EPN","POINT_X":-69.47717,"POINT_Y":47.7949,"N_05":579,"Clay05":314,"CoarseF05":66,"PHw05":52,"Sand05":328,"SOC05":1020,"Silt05":358},"geometry":{"type":"Point","coordinates":[-69.47717,47.7949]}},{"type":"Feature","properties":{"POINT_ID":"PID_118","Name":"EPN","POINT_X":-69.47842,"POINT_Y":47.79364,"N_05":579,"Clay05":314,"CoarseF05":66,"PHw05":52,"Sand05":328,"SOC05":1020,"Silt05":358},"geometry":{"type":"Point","coordinates":[-69.47842,47.79364]}},{"type":"Feature","properties":{"POINT_ID":"PID_119","Name":"EPN","POINT_X":-74.32276,"POINT_Y":49.86718,"N_05":673,"Clay05":179,"CoarseF05":148,"PHw05":58,"Sand05":456,"SOC05":409,"Silt05":365},"geometry":{"type":"Point","coordinates":[-74.32276,49.86718]}},{"type":"Feature","properties":{"POINT_ID":"PID_120","Name":"EPN","POINT_X":-69.47605,"POINT_Y":47.79325,"N_05":567,"Clay05":318,"CoarseF05":69,"PHw05":52,"Sand05":333,"SOC05":1052,"Silt05":349},"geometry":{"type":"Point","coordinates":[-69.47605,47.79325]}},{"type":"Feature","properties":{"POINT_ID":"PID_121","Name":"EPN","POINT_X":-69.47681,"POINT_Y":47.7925,"N_05":575,"Clay05":319,"CoarseF05":77,"PHw05":57,"Sand05":330,"SOC05":923,"Silt05":351},"geometry":{"type":"Point","coordinates":[-69.47681,47.7925]}},{"type":"Feature","properties":{"POINT_ID":"PID_122","Name":"EPN","POINT_X":-76.85442,"POINT_Y":50.55253,"N_05":520,"Clay05":84,"CoarseF05":124,"PHw05":52,"Sand05":611,"SOC05":390,"Silt05":305},"geometry":{"type":"Point","coordinates":[-76.85442,50.55253]}},{"type":"Feature","properties":{"POINT_ID":"PID_123","Name":"EPN","POINT_X":-76.8555,"POINT_Y":50.55264,"N_05":520,"Clay05":84,"CoarseF05":124,"PHw05":52,"Sand05":611,"SOC05":390,"Silt05":305},"geometry":{"type":"Point","coordinates":[-76.8555,50.55264]}},{"type":"Feature","properties":{"POINT_ID":"PID_124","Name":"EPN","POINT_X":-76.85611,"POINT_Y":50.55314,"N_05":520,"Clay05":84,"CoarseF05":124,"PHw05":52,"Sand05":611,"SOC05":390,"Silt05":305},"geometry":{"type":"Point","coordinates":[-76.85611,50.55314]}},{"type":"Feature","properties":{"POINT_ID":"PID_125","Name":"EPN","POINT_X":-76.85519,"POINT_Y":50.55442,"N_05":525,"Clay05":92,"CoarseF05":113,"PHw05":52,"Sand05":607,"SOC05":371,"Silt05":301},"geometry":{"type":"Point","coordinates":[-76.85519,50.55442]}},{"type":"Feature","properties":{"POINT_ID":"PID_126","Name":"EPN","POINT_X":-76.85678,"POINT_Y":50.55467,"N_05":489,"Clay05":92,"CoarseF05":119,"PHw05":52,"Sand05":605,"SOC05":529,"Silt05":303},"geometry":{"type":"Point","coordinates":[-76.85678,50.55467]}},{"type":"Feature","properties":{"POINT_ID":"PID_127","Name":"EPN","POINT_X":-78.37266,"POINT_Y":44.49425,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-78.37266,44.49425]}},{"type":"Feature","properties":{"POINT_ID":"PID_128","Name":"EPN","POINT_X":-78.37266,"POINT_Y":49.49425,"N_05":647,"Clay05":180,"CoarseF05":101,"PHw05":58,"Sand05":519,"SOC05":490,"Silt05":301},"geometry":{"type":"Point","coordinates":[-78.37266,49.49425]}},{"type":"Feature","properties":{"POINT_ID":"PID_129","Name":"EPN","POINT_X":-75.45,"POINT_Y":47.6,"N_05":609,"Clay05":177,"CoarseF05":100,"PHw05":52,"Sand05":469,"SOC05":911,"Silt05":355},"geometry":{"type":"Point","coordinates":[-75.45,47.6]}},{"type":"Feature","properties":{"POINT_ID":"PID_130","Name":"EPN","POINT_X":-72.88333,"POINT_Y":47.76667,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-72.88333,47.76667]}},{"type":"Feature","properties":{"POINT_ID":"PID_131","Name":"EPN","POINT_X":-72.15,"POINT_Y":47.93333,"N_05":692,"Clay05":178,"CoarseF05":86,"PHw05":50,"Sand05":464,"SOC05":1314,"Silt05":358},"geometry":{"type":"Point","coordinates":[-72.15,47.93333]}},{"type":"Feature","properties":{"POINT_ID":"PID_132","Name":"EPN","POINT_X":-76.28333,"POINT_Y":47.28333,"N_05":580,"Clay05":185,"CoarseF05":123,"PHw05":51,"Sand05":438,"SOC05":753,"Silt05":376},"geometry":{"type":"Point","coordinates":[-76.28333,47.28333]}},{"type":"Feature","properties":{"POINT_ID":"PID_133","Name":"EPN","POINT_X":-78.4,"POINT_Y":49.28333,"N_05":453,"Clay05":115,"CoarseF05":93,"PHw05":53,"Sand05":569,"SOC05":442,"Silt05":316},"geometry":{"type":"Point","coordinates":[-78.4,49.28333]}},{"type":"Feature","properties":{"POINT_ID":"PID_134","Name":"EPN","POINT_X":-76.78333,"POINT_Y":48.63334,"N_05":532,"Clay05":216,"CoarseF05":117,"PHw05":51,"Sand05":397,"SOC05":680,"Silt05":387},"geometry":{"type":"Point","coordinates":[-76.78333,48.63334]}},{"type":"Feature","properties":{"POINT_ID":"PID_135","Name":"EPN","POINT_X":-75.4,"POINT_Y":47.16667,"N_05":717,"Clay05":143,"CoarseF05":89,"PHw05":50,"Sand05":463,"SOC05":1094,"Silt05":394},"geometry":{"type":"Point","coordinates":[-75.4,47.16667]}},{"type":"Feature","properties":{"POINT_ID":"PID_136","Name":"EPN","POINT_X":-72.61667,"POINT_Y":46.7,"N_05":582,"Clay05":194,"CoarseF05":80,"PHw05":50,"Sand05":458,"SOC05":1216,"Silt05":348},"geometry":{"type":"Point","coordinates":[-72.61667,46.7]}},{"type":"Feature","properties":{"POINT_ID":"PID_137","Name":"EPN","POINT_X":-76.55,"POINT_Y":46.86666,"N_05":645,"Clay05":192,"CoarseF05":108,"PHw05":53,"Sand05":406,"SOC05":966,"Silt05":403},"geometry":{"type":"Point","coordinates":[-76.55,46.86666]}},{"type":"Feature","properties":{"POINT_ID":"PID_138","Name":"EPN","POINT_X":-73.18333,"POINT_Y":46.48333,"N_05":890,"Clay05":126,"CoarseF05":61,"PHw05":49,"Sand05":417,"SOC05":1400,"Silt05":457},"geometry":{"type":"Point","coordinates":[-73.18333,46.48333]}},{"type":"Feature","properties":{"POINT_ID":"PID_139","Name":"EPN","POINT_X":-74.65,"POINT_Y":48.21667,"N_05":557,"Clay05":239,"CoarseF05":118,"PHw05":50,"Sand05":392,"SOC05":689,"Silt05":370},"geometry":{"type":"Point","coordinates":[-74.65,48.21667]}},{"type":"Feature","properties":{"POINT_ID":"PID_140","Name":"EPN","POINT_X":-74.13333,"POINT_Y":48.41667,"N_05":663,"Clay05":239,"CoarseF05":127,"PHw05":52,"Sand05":396,"SOC05":711,"Silt05":365},"geometry":{"type":"Point","coordinates":[-74.13333,48.41667]}},{"type":"Feature","properties":{"POINT_ID":"PID_141","Name":"EPN","POINT_X":-74.16666,"POINT_Y":48.5,"N_05":569,"Clay05":217,"CoarseF05":133,"PHw05":53,"Sand05":434,"SOC05":569,"Silt05":348},"geometry":{"type":"Point","coordinates":[-74.16666,48.5]}},{"type":"Feature","properties":{"POINT_ID":"PID_142","Name":"EPN","POINT_X":-65.33334,"POINT_Y":48.05,"N_05":638,"Clay05":241,"CoarseF05":78,"PHw05":48,"Sand05":414,"SOC05":624,"Silt05":345},"geometry":{"type":"Point","coordinates":[-65.33334,48.05]}},{"type":"Feature","properties":{"POINT_ID":"PID_143","Name":"EPN","POINT_X":-69.1,"POINT_Y":49.65,"N_05":630,"Clay05":127,"CoarseF05":100,"PHw05":50,"Sand05":491,"SOC05":676,"Silt05":382},"geometry":{"type":"Point","coordinates":[-69.1,49.65]}},{"type":"Feature","properties":{"POINT_ID":"PID_144","Name":"EPN","POINT_X":-76.0,"POINT_Y":46.9,"N_05":484,"Clay05":267,"CoarseF05":82,"PHw05":53,"Sand05":329,"SOC05":792,"Silt05":404},"geometry":{"type":"Point","coordinates":[-76.0,46.9]}},{"type":"Feature","properties":{"POINT_ID":"PID_145","Name":"EPN","POINT_X":-70.88333,"POINT_Y":49.7,"N_05":626,"Clay05":186,"CoarseF05":156,"PHw05":52,"Sand05":469,"SOC05":526,"Silt05":345},"geometry":{"type":"Point","coordinates":[-70.88333,49.7]}},{"type":"Feature","properties":{"POINT_ID":"PID_146","Name":"EPN","POINT_X":-76.18333,"POINT_Y":48.58333,"N_05":636,"Clay05":217,"CoarseF05":114,"PHw05":51,"Sand05":397,"SOC05":587,"Silt05":386},"geometry":{"type":"Point","coordinates":[-76.18333,48.58333]}},{"type":"Feature","properties":{"POINT_ID":"PID_147","Name":"EPN","POINT_X":-69.65,"POINT_Y":48.26667,"N_05":915,"Clay05":207,"CoarseF05":81,"PHw05":48,"Sand05":411,"SOC05":1229,"Silt05":382},"geometry":{"type":"Point","coordinates":[-69.65,48.26667]}},{"type":"Feature","properties":{"POINT_ID":"PID_148","Name":"EPN","POINT_X":-74.6,"POINT_Y":46.5,"N_05":889,"Clay05":145,"CoarseF05":55,"PHw05":50,"Sand05":453,"SOC05":1230,"Silt05":401},"geometry":{"type":"Point","coordinates":[-74.6,46.5]}},{"type":"Feature","properties":{"POINT_ID":"PID_149","Name":"EPN","POINT_X":-61.86666,"POINT_Y":47.33333,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-61.86666,47.33333]}},{"type":"Feature","properties":{"POINT_ID":"PID_150","Name":"EPN","POINT_X":-72.58334,"POINT_Y":49.0,"N_05":593,"Clay05":310,"CoarseF05":108,"PHw05":52,"Sand05":278,"SOC05":647,"Silt05":412},"geometry":{"type":"Point","coordinates":[-72.58334,49.0]}},{"type":"Feature","properties":{"POINT_ID":"PID_151","Name":"EPN","POINT_X":-72.0,"POINT_Y":49.16667,"N_05":614,"Clay05":268,"CoarseF05":141,"PHw05":52,"Sand05":323,"SOC05":565,"Silt05":409},"geometry":{"type":"Point","coordinates":[-72.0,49.16667]}},{"type":"Feature","properties":{"POINT_ID":"PID_152","Name":"EPN","POINT_X":-75.91666,"POINT_Y":47.55,"N_05":648,"Clay05":163,"CoarseF05":120,"PHw05":51,"Sand05":484,"SOC05":763,"Silt05":354},"geometry":{"type":"Point","coordinates":[-75.91666,47.55]}},{"type":"Feature","properties":{"POINT_ID":"PID_153","Name":"EPN","POINT_X":-69.83334,"POINT_Y":47.31667,"N_05":787,"Clay05":178,"CoarseF05":72,"PHw05":46,"Sand05":429,"SOC05":1622,"Silt05":393},"geometry":{"type":"Point","coordinates":[-69.83334,47.31667]}},{"type":"Feature","properties":{"POINT_ID":"PID_154","Name":"EPN","POINT_X":-73.9,"POINT_Y":47.86666,"N_05":671,"Clay05":195,"CoarseF05":108,"PHw05":51,"Sand05":421,"SOC05":792,"Silt05":384},"geometry":{"type":"Point","coordinates":[-73.9,47.86666]}},{"type":"Feature","properties":{"POINT_ID":"PID_155","Name":"EPN","POINT_X":-73.15,"POINT_Y":46.48333,"N_05":603,"Clay05":163,"CoarseF05":69,"PHw05":49,"Sand05":427,"SOC05":934,"Silt05":410},"geometry":{"type":"Point","coordinates":[-73.15,46.48333]}},{"type":"Feature","properties":{"POINT_ID":"PID_156","Name":"EPN","POINT_X":-71.55,"POINT_Y":48.75,"N_05":494,"Clay05":208,"CoarseF05":110,"PHw05":52,"Sand05":396,"SOC05":797,"Silt05":396},"geometry":{"type":"Point","coordinates":[-71.55,48.75]}},{"type":"Feature","properties":{"POINT_ID":"PID_157","Name":"EPN","POINT_X":-74.61667,"POINT_Y":46.98333,"N_05":593,"Clay05":185,"CoarseF05":112,"PHw05":52,"Sand05":434,"SOC05":1144,"Silt05":382},"geometry":{"type":"Point","coordinates":[-74.61667,46.98333]}},{"type":"Feature","properties":{"POINT_ID":"PID_158","Name":"EPN","POINT_X":-75.56667,"POINT_Y":46.01667,"N_05":678,"Clay05":263,"CoarseF05":54,"PHw05":52,"Sand05":343,"SOC05":759,"Silt05":394},"geometry":{"type":"Point","coordinates":[-75.56667,46.01667]}},{"type":"Feature","properties":{"POINT_ID":"PID_159","Name":"EPN","POINT_X":-70.41666,"POINT_Y":49.08333,"N_05":625,"Clay05":171,"CoarseF05":106,"PHw05":50,"Sand05":444,"SOC05":679,"Silt05":385},"geometry":{"type":"Point","coordinates":[-70.41666,49.08333]}},{"type":"Feature","properties":{"POINT_ID":"PID_160","Name":"EPN","POINT_X":-66.03333,"POINT_Y":50.25,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-66.03333,50.25]}},{"type":"Feature","properties":{"POINT_ID":"PID_161","Name":"EPN","POINT_X":-73.25,"POINT_Y":49.66667,"N_05":577,"Clay05":203,"CoarseF05":127,"PHw05":52,"Sand05":411,"SOC05":537,"Silt05":386},"geometry":{"type":"Point","coordinates":[-73.25,49.66667]}},{"type":"Feature","properties":{"POINT_ID":"PID_162","Name":"EPN","POINT_X":-71.08334,"POINT_Y":50.21667,"N_05":691,"Clay05":193,"CoarseF05":142,"PHw05":55,"Sand05":434,"SOC05":612,"Silt05":373},"geometry":{"type":"Point","coordinates":[-71.08334,50.21667]}},{"type":"Feature","properties":{"POINT_ID":"PID_163","Name":"EPN","POINT_X":-72.83334,"POINT_Y":46.98333,"N_05":804,"Clay05":151,"CoarseF05":71,"PHw05":47,"Sand05":495,"SOC05":1521,"Silt05":355},"geometry":{"type":"Point","coordinates":[-72.83334,46.98333]}},{"type":"Feature","properties":{"POINT_ID":"PID_164","Name":"EPN","POINT_X":-70.93333,"POINT_Y":45.58333,"N_05":1124,"Clay05":105,"CoarseF05":67,"PHw05":43,"Sand05":467,"SOC05":1755,"Silt05":428},"geometry":{"type":"Point","coordinates":[-70.93333,45.58333]}},{"type":"Feature","properties":{"POINT_ID":"PID_165","Name":"EPN","POINT_X":-66.31667,"POINT_Y":50.28333,"N_05":563,"Clay05":188,"CoarseF05":106,"PHw05":53,"Sand05":446,"SOC05":479,"Silt05":366},"geometry":{"type":"Point","coordinates":[-66.31667,50.28333]}},{"type":"Feature","properties":{"POINT_ID":"PID_166","Name":"EPN","POINT_X":-72.58334,"POINT_Y":50.03333,"N_05":628,"Clay05":171,"CoarseF05":147,"PHw05":52,"Sand05":460,"SOC05":431,"Silt05":369},"geometry":{"type":"Point","coordinates":[-72.58334,50.03333]}},{"type":"Feature","properties":{"POINT_ID":"PID_167","Name":"EPN","POINT_X":-76.55,"POINT_Y":49.78333,"N_05":645,"Clay05":128,"CoarseF05":131,"PHw05":52,"Sand05":572,"SOC05":433,"Silt05":299},"geometry":{"type":"Point","coordinates":[-76.55,49.78333]}},{"type":"Feature","properties":{"POINT_ID":"PID_168","Name":"EPN","POINT_X":-76.15,"POINT_Y":46.83333,"N_05":543,"Clay05":290,"CoarseF05":108,"PHw05":52,"Sand05":358,"SOC05":679,"Silt05":352},"geometry":{"type":"Point","coordinates":[-76.15,46.83333]}},{"type":"Feature","properties":{"POINT_ID":"PID_169","Name":"EPN","POINT_X":-76.65,"POINT_Y":46.81667,"N_05":622,"Clay05":207,"CoarseF05":88,"PHw05":53,"Sand05":344,"SOC05":814,"Silt05":449},"geometry":{"type":"Point","coordinates":[-76.65,46.81667]}},{"type":"Feature","properties":{"POINT_ID":"PID_170","Name":"EPN","POINT_X":-71.91666,"POINT_Y":49.85,"N_05":671,"Clay05":197,"CoarseF05":128,"PHw05":52,"Sand05":416,"SOC05":530,"Silt05":387},"geometry":{"type":"Point","coordinates":[-71.91666,49.85]}},{"type":"Feature","properties":{"POINT_ID":"PID_171","Name":"EPN","POINT_X":-76.95,"POINT_Y":49.41667,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-76.95,49.41667]}},{"type":"Feature","properties":{"POINT_ID":"PID_172","Name":"EPN","POINT_X":-73.88333,"POINT_Y":46.63334,"N_05":795,"Clay05":143,"CoarseF05":89,"PHw05":50,"Sand05":433,"SOC05":1223,"Silt05":424},"geometry":{"type":"Point","coordinates":[-73.88333,46.63334]}},{"type":"Feature","properties":{"POINT_ID":"PID_173","Name":"EPN","POINT_X":-74.56667,"POINT_Y":46.06667,"N_05":708,"Clay05":176,"CoarseF05":51,"PHw05":50,"Sand05":461,"SOC05":1057,"Silt05":363},"geometry":{"type":"Point","coordinates":[-74.56667,46.06667]}},{"type":"Feature","properties":{"POINT_ID":"PID_174","Name":"EPN","POINT_X":-71.75,"POINT_Y":46.75,"N_05":449,"Clay05":260,"CoarseF05":55,"PHw05":58,"Sand05":423,"SOC05":760,"Silt05":317},"geometry":{"type":"Point","coordinates":[-71.75,46.75]}},{"type":"Feature","properties":{"POINT_ID":"PID_175","Name":"EPN","POINT_X":-77.16666,"POINT_Y":50.11666,"N_05":609,"Clay05":102,"CoarseF05":122,"PHw05":52,"Sand05":628,"SOC05":406,"Silt05":270},"geometry":{"type":"Point","coordinates":[-77.16666,50.11666]}},{"type":"Feature","properties":{"POINT_ID":"PID_176","Name":"EPN","POINT_X":-70.16666,"POINT_Y":47.76667,"N_05":979,"Clay05":162,"CoarseF05":89,"PHw05":45,"Sand05":452,"SOC05":1655,"Silt05":386},"geometry":{"type":"Point","coordinates":[-70.16666,47.76667]}},{"type":"Feature","properties":{"POINT_ID":"PID_177","Name":"EPN","POINT_X":-74.18333,"POINT_Y":48.13334,"N_05":531,"Clay05":198,"CoarseF05":132,"PHw05":53,"Sand05":402,"SOC05":623,"Silt05":400},"geometry":{"type":"Point","coordinates":[-74.18333,48.13334]}},{"type":"Feature","properties":{"POINT_ID":"PID_178","Name":"EPN","POINT_X":-74.2,"POINT_Y":48.01667,"N_05":537,"Clay05":171,"CoarseF05":102,"PHw05":52,"Sand05":453,"SOC05":643,"Silt05":376},"geometry":{"type":"Point","coordinates":[-74.2,48.01667]}},{"type":"Feature","properties":{"POINT_ID":"PID_179","Name":"EPN","POINT_X":-71.83334,"POINT_Y":49.71667,"N_05":625,"Clay05":167,"CoarseF05":137,"PHw05":51,"Sand05":449,"SOC05":673,"Silt05":384},"geometry":{"type":"Point","coordinates":[-71.83334,49.71667]}},{"type":"Feature","properties":{"POINT_ID":"PID_180","Name":"EPN","POINT_X":-71.08334,"POINT_Y":47.58333,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-71.08334,47.58333]}},{"type":"Feature","properties":{"POINT_ID":"PID_181","Name":"EPN","POINT_X":-78.51667,"POINT_Y":49.18333,"N_05":548,"Clay05":157,"CoarseF05":122,"PHw05":52,"Sand05":452,"SOC05":755,"Silt05":391},"geometry":{"type":"Point","coordinates":[-78.51667,49.18333]}},{"type":"Feature","properties":{"POINT_ID":"PID_182","Name":"EPN","POINT_X":-78.01667,"POINT_Y":48.85,"N_05":546,"Clay05":153,"CoarseF05":112,"PHw05":53,"Sand05":540,"SOC05":613,"Silt05":306},"geometry":{"type":"Point","coordinates":[-78.01667,48.85]}},{"type":"Feature","properties":{"POINT_ID":"PID_183","Name":"EPN","POINT_X":-66.91666,"POINT_Y":48.91667,"N_05":486,"Clay05":190,"CoarseF05":95,"PHw05":50,"Sand05":419,"SOC05":683,"Silt05":391},"geometry":{"type":"Point","coordinates":[-66.91666,48.91667]}},{"type":"Feature","properties":{"POINT_ID":"PID_184","Name":"EPN","POINT_X":-74.6,"POINT_Y":48.3,"N_05":559,"Clay05":243,"CoarseF05":142,"PHw05":52,"Sand05":393,"SOC05":453,"Silt05":364},"geometry":{"type":"Point","coordinates":[-74.6,48.3]}},{"type":"Feature","properties":{"POINT_ID":"PID_185","Name":"EPN","POINT_X":-70.9,"POINT_Y":48.48333,"N_05":587,"Clay05":211,"CoarseF05":111,"PHw05":51,"Sand05":422,"SOC05":980,"Silt05":368},"geometry":{"type":"Point","coordinates":[-70.9,48.48333]}},{"type":"Feature","properties":{"POINT_ID":"PID_186","Name":"EPN","POINT_X":-68.46667,"POINT_Y":47.61666,"N_05":498,"Clay05":256,"CoarseF05":75,"PHw05":45,"Sand05":273,"SOC05":768,"Silt05":471},"geometry":{"type":"Point","coordinates":[-68.46667,47.61666]}},{"type":"Feature","properties":{"POINT_ID":"PID_187","Name":"EPN","POINT_X":-68.0,"POINT_Y":48.5,"N_05":626,"Clay05":257,"CoarseF05":86,"PHw05":51,"Sand05":320,"SOC05":971,"Silt05":423},"geometry":{"type":"Point","coordinates":[-68.0,48.5]}},{"type":"Feature","properties":{"POINT_ID":"PID_188","Name":"EPN","POINT_X":-69.18333,"POINT_Y":47.58333,"N_05":892,"Clay05":198,"CoarseF05":72,"PHw05":45,"Sand05":355,"SOC05":1169,"Silt05":447},"geometry":{"type":"Point","coordinates":[-69.18333,47.58333]}},{"type":"Feature","properties":{"POINT_ID":"PID_189","Name":"EPN","POINT_X":-68.36667,"POINT_Y":48.51667,"N_05":554,"Clay05":237,"CoarseF05":78,"PHw05":61,"Sand05":356,"SOC05":593,"Silt05":407},"geometry":{"type":"Point","coordinates":[-68.36667,48.51667]}},{"type":"Feature","properties":{"POINT_ID":"PID_190","Name":"EPN","POINT_X":-68.5,"POINT_Y":48.06667,"N_05":564,"Clay05":239,"CoarseF05":72,"PHw05":47,"Sand05":378,"SOC05":849,"Silt05":382},"geometry":{"type":"Point","coordinates":[-68.5,48.06667]}},{"type":"Feature","properties":{"POINT_ID":"PID_191","Name":"EPN","POINT_X":-64.48333,"POINT_Y":48.48333,"N_05":591,"Clay05":198,"CoarseF05":75,"PHw05":45,"Sand05":399,"SOC05":827,"Silt05":403},"geometry":{"type":"Point","coordinates":[-64.48333,48.48333]}},{"type":"Feature","properties":{"POINT_ID":"PID_192","Name":"EPN","POINT_X":-78.15,"POINT_Y":48.83333,"N_05":506,"Clay05":127,"CoarseF05":87,"PHw05":52,"Sand05":546,"SOC05":481,"Silt05":328},"geometry":{"type":"Point","coordinates":[-78.15,48.83333]}},{"type":"Feature","properties":{"POINT_ID":"PID_193","Name":"EPN","POINT_X":-78.13333,"POINT_Y":49.46667,"N_05":520,"Clay05":177,"CoarseF05":104,"PHw05":53,"Sand05":529,"SOC05":381,"Silt05":294},"geometry":{"type":"Point","coordinates":[-78.13333,49.46667]}},{"type":"Feature","properties":{"POINT_ID":"PID_194","Name":"EPN","POINT_X":-73.51667,"POINT_Y":50.43333,"N_05":558,"Clay05":169,"CoarseF05":140,"PHw05":51,"Sand05":492,"SOC05":556,"Silt05":339},"geometry":{"type":"Point","coordinates":[-73.51667,50.43333]}},{"type":"Feature","properties":{"POINT_ID":"PID_195","Name":"EPN","POINT_X":-74.03333,"POINT_Y":50.65,"N_05":551,"Clay05":133,"CoarseF05":145,"PHw05":53,"Sand05":527,"SOC05":305,"Silt05":340},"geometry":{"type":"Point","coordinates":[-74.03333,50.65]}},{"type":"Feature","properties":{"POINT_ID":"PID_196","Name":"EPN","POINT_X":-76.25,"POINT_Y":49.23333,"N_05":671,"Clay05":186,"CoarseF05":118,"PHw05":52,"Sand05":414,"SOC05":382,"Silt05":399},"geometry":{"type":"Point","coordinates":[-76.25,49.23333]}},{"type":"Feature","properties":{"POINT_ID":"PID_197","Name":"EPN","POINT_X":-72.95,"POINT_Y":50.83333,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-72.95,50.83333]}},{"type":"Feature","properties":{"POINT_ID":"PID_198","Name":"EPN","POINT_X":-71.28333,"POINT_Y":50.35,"N_05":772,"Clay05":156,"CoarseF05":147,"PHw05":52,"Sand05":447,"SOC05":617,"Silt05":398},"geometry":{"type":"Point","coordinates":[-71.28333,50.35]}},{"type":"Feature","properties":{"POINT_ID":"PID_199","Name":"EPN","POINT_X":-70.56667,"POINT_Y":49.16667,"N_05":683,"Clay05":177,"CoarseF05":137,"PHw05":51,"Sand05":445,"SOC05":895,"Silt05":378},"geometry":{"type":"Point","coordinates":[-70.56667,49.16667]}},{"type":"Feature","properties":{"POINT_ID":"PID_200","Name":"EPN","POINT_X":-79.23333,"POINT_Y":47.26667,"N_05":478,"Clay05":250,"CoarseF05":100,"PHw05":52,"Sand05":359,"SOC05":511,"Silt05":391},"geometry":{"type":"Point","coordinates":[-79.23333,47.26667]}},{"type":"Feature","properties":{"POINT_ID":"PID_201","Name":"EPN","POINT_X":-76.13333,"POINT_Y":49.3,"N_05":647,"Clay05":192,"CoarseF05":115,"PHw05":53,"Sand05":363,"SOC05":379,"Silt05":445},"geometry":{"type":"Point","coordinates":[-76.13333,49.3]}},{"type":"Feature","properties":{"POINT_ID":"PID_202","Name":"EPN","POINT_X":-78.81667,"POINT_Y":47.35,"N_05":524,"Clay05":209,"CoarseF05":103,"PHw05":53,"Sand05":433,"SOC05":770,"Silt05":357},"geometry":{"type":"Point","coordinates":[-78.81667,47.35]}},{"type":"Feature","properties":{"POINT_ID":"PID_203","Name":"EPN","POINT_X":-74.65,"POINT_Y":46.58333,"N_05":923,"Clay05":136,"CoarseF05":65,"PHw05":50,"Sand05":482,"SOC05":1070,"Silt05":382},"geometry":{"type":"Point","coordinates":[-74.65,46.58333]}},{"type":"Feature","properties":{"POINT_ID":"PID_204","Name":"EPN","POINT_X":-74.4,"POINT_Y":50.36666,"N_05":598,"Clay05":159,"CoarseF05":147,"PHw05":51,"Sand05":534,"SOC05":675,"Silt05":307},"geometry":{"type":"Point","coordinates":[-74.4,50.36666]}},{"type":"Feature","properties":{"POINT_ID":"PID_205","Name":"EPN","POINT_X":-73.55,"POINT_Y":50.31667,"N_05":589,"Clay05":163,"CoarseF05":132,"PHw05":55,"Sand05":472,"SOC05":383,"Silt05":365},"geometry":{"type":"Point","coordinates":[-73.55,50.31667]}},{"type":"Feature","properties":{"POINT_ID":"PID_206","Name":"EPN","POINT_X":-74.96667,"POINT_Y":49.1,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-74.96667,49.1]}},{"type":"Feature","properties":{"POINT_ID":"PID_207","Name":"EPN","POINT_X":-69.47819,"POINT_Y":47.79574,"N_05":607,"Clay05":293,"CoarseF05":67,"PHw05":52,"Sand05":368,"SOC05":981,"Silt05":338},"geometry":{"type":"Point","coordinates":[-69.47819,47.79574]}},{"type":"Feature","properties":{"POINT_ID":"PID_208","Name":"EPN","POINT_X":-69.47178,"POINT_Y":47.79576,"N_05":553,"Clay05":299,"CoarseF05":71,"PHw05":60,"Sand05":360,"SOC05":733,"Silt05":341},"geometry":{"type":"Point","coordinates":[-69.47178,47.79576]}},{"type":"Feature","properties":{"POINT_ID":"PID_209","Name":"EPN","POINT_X":-69.47985,"POINT_Y":47.79436,"N_05":593,"Clay05":305,"CoarseF05":67,"PHw05":53,"Sand05":345,"SOC05":992,"Silt05":350},"geometry":{"type":"Point","coordinates":[-69.47985,47.79436]}},{"type":"Feature","properties":{"POINT_ID":"PID_210","Name":"EPN","POINT_X":-69.4809,"POINT_Y":47.79676,"N_05":595,"Clay05":281,"CoarseF05":66,"PHw05":55,"Sand05":353,"SOC05":863,"Silt05":366},"geometry":{"type":"Point","coordinates":[-69.4809,47.79676]}},{"type":"Feature","properties":{"POINT_ID":"PID_211","Name":"EPN","POINT_X":-69.47913,"POINT_Y":47.79757,"N_05":607,"Clay05":293,"CoarseF05":67,"PHw05":52,"Sand05":368,"SOC05":981,"Silt05":338},"geometry":{"type":"Point","coordinates":[-69.47913,47.79757]}},{"type":"Feature","properties":{"POINT_ID":"PID_212","Name":"EPN","POINT_X":-69.48302,"POINT_Y":47.79517,"N_05":593,"Clay05":305,"CoarseF05":67,"PHw05":53,"Sand05":345,"SOC05":992,"Silt05":350},"geometry":{"type":"Point","coordinates":[-69.48302,47.79517]}},{"type":"Feature","properties":{"POINT_ID":"PID_213","Name":"EPN","POINT_X":-70.83334,"POINT_Y":49.8,"N_05":608,"Clay05":187,"CoarseF05":124,"PHw05":52,"Sand05":407,"SOC05":420,"Silt05":405},"geometry":{"type":"Point","coordinates":[-70.83334,49.8]}},{"type":"Feature","properties":{"POINT_ID":"PID_214","Name":"EPN","POINT_X":-72.25,"POINT_Y":47.66667,"N_05":804,"Clay05":190,"CoarseF05":93,"PHw05":48,"Sand05":457,"SOC05":1119,"Silt05":353},"geometry":{"type":"Point","coordinates":[-72.25,47.66667]}},{"type":"Feature","properties":{"POINT_ID":"PID_215","Name":"EPN","POINT_X":-71.25,"POINT_Y":49.83333,"N_05":720,"Clay05":157,"CoarseF05":151,"PHw05":50,"Sand05":451,"SOC05":489,"Silt05":392},"geometry":{"type":"Point","coordinates":[-71.25,49.83333]}},{"type":"Feature","properties":{"POINT_ID":"PID_216","Name":"EPN","POINT_X":-71.01667,"POINT_Y":48.95,"N_05":631,"Clay05":199,"CoarseF05":114,"PHw05":55,"Sand05":446,"SOC05":698,"Silt05":355},"geometry":{"type":"Point","coordinates":[-71.01667,48.95]}},{"type":"Feature","properties":{"POINT_ID":"PID_217","Name":"EPN","POINT_X":-78.03333,"POINT_Y":48.43333,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-78.03333,48.43333]}},{"type":"Feature","properties":{"POINT_ID":"PID_218","Name":"EPN","POINT_X":-69.5,"POINT_Y":47.5,"N_05":812,"Clay05":198,"CoarseF05":135,"PHw05":48,"Sand05":370,"SOC05":1190,"Silt05":432},"geometry":{"type":"Point","coordinates":[-69.5,47.5]}},{"type":"Feature","properties":{"POINT_ID":"PID_219","Name":"EPN","POINT_X":-67.96667,"POINT_Y":48.05,"N_05":548,"Clay05":220,"CoarseF05":106,"PHw05":46,"Sand05":321,"SOC05":1030,"Silt05":459},"geometry":{"type":"Point","coordinates":[-67.96667,48.05]}},{"type":"Feature","properties":{"POINT_ID":"PID_220","Name":"EPN","POINT_X":-70.88333,"POINT_Y":50.25,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-70.88333,50.25]}},{"type":"Feature","properties":{"POINT_ID":"PID_221","Name":"EPN","POINT_X":-75.18333,"POINT_Y":46.03333,"N_05":887,"Clay05":179,"CoarseF05":73,"PHw05":51,"Sand05":394,"SOC05":1035,"Silt05":426},"geometry":{"type":"Point","coordinates":[-75.18333,46.03333]}},{"type":"Feature","properties":{"POINT_ID":"PID_222","Name":"EPN","POINT_X":-74.0,"POINT_Y":50.66667,"N_05":507,"Clay05":142,"CoarseF05":139,"PHw05":51,"Sand05":517,"SOC05":348,"Silt05":341},"geometry":{"type":"Point","coordinates":[-74.0,50.66667]}},{"type":"Feature","properties":{"POINT_ID":"PID_223","Name":"EPN","POINT_X":-72.2,"POINT_Y":50.61666,"N_05":696,"Clay05":181,"CoarseF05":147,"PHw05":50,"Sand05":435,"SOC05":387,"Silt05":384},"geometry":{"type":"Point","coordinates":[-72.2,50.61666]}},{"type":"Feature","properties":{"POINT_ID":"PID_224","Name":"EPN","POINT_X":-74.96667,"POINT_Y":49.26667,"N_05":630,"Clay05":198,"CoarseF05":132,"PHw05":51,"Sand05":419,"SOC05":301,"Silt05":382},"geometry":{"type":"Point","coordinates":[-74.96667,49.26667]}},{"type":"Feature","properties":{"POINT_ID":"PID_225","Name":"EPN","POINT_X":-68.5,"POINT_Y":49.68333,"N_05":561,"Clay05":196,"CoarseF05":152,"PHw05":52,"Sand05":456,"SOC05":539,"Silt05":349},"geometry":{"type":"Point","coordinates":[-68.5,49.68333]}},{"type":"Feature","properties":{"POINT_ID":"PID_226","Name":"EPN","POINT_X":-72.61667,"POINT_Y":46.68333,"N_05":568,"Clay05":191,"CoarseF05":81,"PHw05":50,"Sand05":469,"SOC05":993,"Silt05":340},"geometry":{"type":"Point","coordinates":[-72.61667,46.68333]}},{"type":"Feature","properties":{"POINT_ID":"PID_227","Name":"EPN","POINT_X":-74.9,"POINT_Y":47.08333,"N_05":709,"Clay05":161,"CoarseF05":110,"PHw05":51,"Sand05":463,"SOC05":1188,"Silt05":375},"geometry":{"type":"Point","coordinates":[-74.9,47.08333]}},{"type":"Feature","properties":{"POINT_ID":"PID_228","Name":"EPN","POINT_X":-74.25,"POINT_Y":47.93333,"N_05":596,"Clay05":201,"CoarseF05":115,"PHw05":56,"Sand05":409,"SOC05":428,"Silt05":390},"geometry":{"type":"Point","coordinates":[-74.25,47.93333]}},{"type":"Feature","properties":{"POINT_ID":"PID_229","Name":"EPN","POINT_X":-73.3,"POINT_Y":47.61666,"N_05":653,"Clay05":199,"CoarseF05":129,"PHw05":51,"Sand05":426,"SOC05":729,"Silt05":375},"geometry":{"type":"Point","coordinates":[-73.3,47.61666]}},{"type":"Feature","properties":{"POINT_ID":"PID_230","Name":"EPN","POINT_X":-74.71667,"POINT_Y":46.95,"N_05":581,"Clay05":153,"CoarseF05":111,"PHw05":51,"Sand05":443,"SOC05":1278,"Silt05":404},"geometry":{"type":"Point","coordinates":[-74.71667,46.95]}},{"type":"Feature","properties":{"POINT_ID":"PID_231","Name":"EPN","POINT_X":-70.88333,"POINT_Y":48.55,"N_05":597,"Clay05":203,"CoarseF05":123,"PHw05":51,"Sand05":450,"SOC05":1020,"Silt05":348},"geometry":{"type":"Point","coordinates":[-70.88333,48.55]}},{"type":"Feature","properties":{"POINT_ID":"PID_232","Name":"EPN","POINT_X":-78.33334,"POINT_Y":47.65,"N_05":433,"Clay05":199,"CoarseF05":96,"PHw05":50,"Sand05":440,"SOC05":512,"Silt05":361},"geometry":{"type":"Point","coordinates":[-78.33334,47.65]}},{"type":"Feature","properties":{"POINT_ID":"PID_233","Name":"EPN","POINT_X":-77.9,"POINT_Y":47.63334,"N_05":487,"Clay05":197,"CoarseF05":122,"PHw05":53,"Sand05":498,"SOC05":467,"Silt05":305},"geometry":{"type":"Point","coordinates":[-77.9,47.63334]}},{"type":"Feature","properties":{"POINT_ID":"PID_234","Name":"EPN","POINT_X":-75.78333,"POINT_Y":47.61666,"N_05":693,"Clay05":186,"CoarseF05":104,"PHw05":51,"Sand05":466,"SOC05":713,"Silt05":348},"geometry":{"type":"Point","coordinates":[-75.78333,47.61666]}},{"type":"Feature","properties":{"POINT_ID":"PID_235","Name":"EPN","POINT_X":-71.43333,"POINT_Y":48.23333,"N_05":678,"Clay05":254,"CoarseF05":132,"PHw05":51,"Sand05":486,"SOC05":922,"Silt05":261},"geometry":{"type":"Point","coordinates":[-71.43333,48.23333]}},{"type":"Feature","properties":{"POINT_ID":"PID_236","Name":"EPN","POINT_X":-68.08334,"POINT_Y":48.01667,"N_05":575,"Clay05":216,"CoarseF05":96,"PHw05":44,"Sand05":366,"SOC05":1049,"Silt05":418},"geometry":{"type":"Point","coordinates":[-68.08334,48.01667]}},{"type":"Feature","properties":{"POINT_ID":"PID_237","Name":"EPN","POINT_X":-68.0,"POINT_Y":48.06667,"N_05":429,"Clay05":206,"CoarseF05":128,"PHw05":47,"Sand05":347,"SOC05":723,"Silt05":446},"geometry":{"type":"Point","coordinates":[-68.0,48.06667]}},{"type":"Feature","properties":{"POINT_ID":"PID_238","Name":"EPN","POINT_X":-76.91666,"POINT_Y":48.65,"N_05":666,"Clay05":193,"CoarseF05":112,"PHw05":52,"Sand05":379,"SOC05":587,"Silt05":429},"geometry":{"type":"Point","coordinates":[-76.91666,48.65]}},{"type":"Feature","properties":{"POINT_ID":"PID_239","Name":"EPN","POINT_X":-77.0,"POINT_Y":49.25,"N_05":526,"Clay05":132,"CoarseF05":133,"PHw05":52,"Sand05":498,"SOC05":621,"Silt05":370},"geometry":{"type":"Point","coordinates":[-77.0,49.25]}},{"type":"Feature","properties":{"POINT_ID":"PID_240","Name":"EPN","POINT_X":-70.23333,"POINT_Y":46.48333,"N_05":1202,"Clay05":149,"CoarseF05":88,"PHw05":44,"Sand05":452,"SOC05":1921,"Silt05":399},"geometry":{"type":"Point","coordinates":[-70.23333,46.48333]}},{"type":"Feature","properties":{"POINT_ID":"PID_241","Name":"EPN","POINT_X":-77.6917,"POINT_Y":45.4639,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-77.6917,45.4639]}},{"type":"Feature","properties":{"POINT_ID":"PID_242","Name":"EPN","POINT_X":-74.3066,"POINT_Y":49.86683,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-74.3066,49.86683]}},{"type":"Feature","properties":{"POINT_ID":"PID_243","Name":"EPN","POINT_X":-74.3287,"POINT_Y":49.87123,"N_05":613,"Clay05":185,"CoarseF05":130,"PHw05":55,"Sand05":435,"SOC05":416,"Silt05":379},"geometry":{"type":"Point","coordinates":[-74.3287,49.87123]}},{"type":"Feature","properties":{"POINT_ID":"PID_244","Name":"EPN","POINT_X":-77.0,"POINT_Y":49.21667,"N_05":518,"Clay05":179,"CoarseF05":109,"PHw05":51,"Sand05":526,"SOC05":488,"Silt05":295},"geometry":{"type":"Point","coordinates":[-77.0,49.21667]}},{"type":"Feature","properties":{"POINT_ID":"PID_245","Name":"EPN","POINT_X":-70.33334,"POINT_Y":46.55,"N_05":985,"Clay05":155,"CoarseF05":77,"PHw05":44,"Sand05":449,"SOC05":1903,"Silt05":396},"geometry":{"type":"Point","coordinates":[-70.33334,46.55]}},{"type":"Feature","properties":{"POINT_ID":"PID_246","Name":"EPN","POINT_X":-79.0,"POINT_Y":47.4,"N_05":546,"Clay05":209,"CoarseF05":88,"PHw05":58,"Sand05":400,"SOC05":574,"Silt05":391},"geometry":{"type":"Point","coordinates":[-79.0,47.4]}},{"type":"Feature","properties":{"POINT_ID":"PID_247","Name":"EPN","POINT_X":-69.96667,"POINT_Y":46.88334,"N_05":1050,"Clay05":148,"CoarseF05":83,"PHw05":46,"Sand05":441,"SOC05":1992,"Silt05":411},"geometry":{"type":"Point","coordinates":[-69.96667,46.88334]}},{"type":"Feature","properties":{"POINT_ID":"PID_248","Name":"EPN","POINT_X":-70.46667,"POINT_Y":46.2,"N_05":1149,"Clay05":144,"CoarseF05":59,"PHw05":45,"Sand05":423,"SOC05":1964,"Silt05":433},"geometry":{"type":"Point","coordinates":[-70.46667,46.2]}},{"type":"Feature","properties":{"POINT_ID":"PID_249","Name":"EPN","POINT_X":-71.43333,"POINT_Y":46.26667,"N_05":966,"Clay05":165,"CoarseF05":60,"PHw05":47,"Sand05":453,"SOC05":861,"Silt05":382},"geometry":{"type":"Point","coordinates":[-71.43333,46.26667]}},{"type":"Feature","properties":{"POINT_ID":"PID_250","Name":"EPN","POINT_X":-79.0,"POINT_Y":47.33333,"N_05":520,"Clay05":252,"CoarseF05":94,"PHw05":53,"Sand05":371,"SOC05":592,"Silt05":378},"geometry":{"type":"Point","coordinates":[-79.0,47.33333]}},{"type":"Feature","properties":{"POINT_ID":"PID_251","Name":"EPN","POINT_X":-78.8,"POINT_Y":47.76667,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-78.8,47.76667]}},{"type":"Feature","properties":{"POINT_ID":"PID_252","Name":"EPN","POINT_X":-75.7,"POINT_Y":49.25,"N_05":714,"Clay05":184,"CoarseF05":110,"PHw05":53,"Sand05":416,"SOC05":307,"Silt05":400},"geometry":{"type":"Point","coordinates":[-75.7,49.25]}},{"type":"Feature","properties":{"POINT_ID":"PID_253","Name":"EPN","POINT_X":-72.73333,"POINT_Y":45.4,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-72.73333,45.4]}},{"type":"Feature","properties":{"POINT_ID":"PID_254","Name":"EPN","POINT_X":-74.13333,"POINT_Y":47.76667,"N_05":670,"Clay05":184,"CoarseF05":102,"PHw05":54,"Sand05":454,"SOC05":782,"Silt05":362},"geometry":{"type":"Point","coordinates":[-74.13333,47.76667]}},{"type":"Feature","properties":{"POINT_ID":"PID_255","Name":"EPN","POINT_X":-69.41666,"POINT_Y":50.16667,"N_05":576,"Clay05":147,"CoarseF05":126,"PHw05":53,"Sand05":549,"SOC05":332,"Silt05":304},"geometry":{"type":"Point","coordinates":[-69.41666,50.16667]}},{"type":"Feature","properties":{"POINT_ID":"PID_256","Name":"EPN","POINT_X":-69.33334,"POINT_Y":49.63334,"N_05":663,"Clay05":150,"CoarseF05":108,"PHw05":50,"Sand05":483,"SOC05":685,"Silt05":367},"geometry":{"type":"Point","coordinates":[-69.33334,49.63334]}},{"type":"Feature","properties":{"POINT_ID":"PID_257","Name":"EPN","POINT_X":-73.25,"POINT_Y":49.83333,"N_05":564,"Clay05":202,"CoarseF05":149,"PHw05":51,"Sand05":462,"SOC05":469,"Silt05":337},"geometry":{"type":"Point","coordinates":[-73.25,49.83333]}},{"type":"Feature","properties":{"POINT_ID":"PID_258","Name":"EPN","POINT_X":-70.25,"POINT_Y":46.46667,"N_05":1173,"Clay05":136,"CoarseF05":69,"PHw05":44,"Sand05":414,"SOC05":1962,"Silt05":451},"geometry":{"type":"Point","coordinates":[-70.25,46.46667]}},{"type":"Feature","properties":{"POINT_ID":"PID_259","Name":"EPN","POINT_X":-79.5,"POINT_Y":48.48333,"N_05":438,"Clay05":222,"CoarseF05":120,"PHw05":53,"Sand05":431,"SOC05":568,"Silt05":347},"geometry":{"type":"Point","coordinates":[-79.5,48.48333]}},{"type":"Feature","properties":{"POINT_ID":"PID_260","Name":"EPN","POINT_X":-70.33334,"POINT_Y":47.61666,"N_05":752,"Clay05":190,"CoarseF05":93,"PHw05":56,"Sand05":409,"SOC05":1069,"Silt05":402},"geometry":{"type":"Point","coordinates":[-70.33334,47.61666]}},{"type":"Feature","properties":{"POINT_ID":"PID_261","Name":"EPN","POINT_X":-71.25,"POINT_Y":49.88334,"N_05":702,"Clay05":167,"CoarseF05":148,"PHw05":53,"Sand05":418,"SOC05":456,"Silt05":415},"geometry":{"type":"Point","coordinates":[-71.25,49.88334]}},{"type":"Feature","properties":{"POINT_ID":"PID_262","Name":"EPN","POINT_X":-61.86666,"POINT_Y":47.36666,"N_05":0,"Clay05":0,"CoarseF05":0,"PHw05":0,"Sand05":0,"SOC05":0,"Silt05":0},"geometry":{"type":"Point","coordinates":[-61.86666,47.36666]}},{"type":"Feature","properties":{"POINT_ID":"PID_263","Name":"EPN","POINT_X":-76.26667,"POINT_Y":46.36666,"N_05":697,"Clay05":274,"CoarseF05":91,"PHw05":52,"Sand05":332,"SOC05":856,"Silt05":394},"geometry":{"type":"Point","coordinates":[-76.26667,46.36666]}},{"type":"Feature","properties":{"POINT_ID":"PID_264","Name":"EPN","POINT_X":-75.41666,"POINT_Y":46.5,"N_05":861,"Clay05":183,"CoarseF05":86,"PHw05":51,"Sand05":405,"SOC05":1069,"Silt05":412},"geometry":{"type":"Point","coordinates":[-75.41666,46.5]}},{"type":"Feature","properties":{"POINT_ID":"PID_265","Name":"EPN","POINT_X":-67.96667,"POINT_Y":48.03333,"N_05":519,"Clay05":251,"CoarseF05":113,"PHw05":44,"Sand05":353,"SOC05":935,"Silt05":396},"geometry":{"type":"Point","coordinates":[-67.96667,48.03333]}},{"type":"Feature","properties":{"POINT_ID":"PID_266","Name":"EPN","POINT_X":-70.01667,"POINT_Y":48.95,"N_05":701,"Clay05":171,"CoarseF05":100,"PHw05":46,"Sand05":431,"SOC05":896,"Silt05":398},"geometry":{"type":"Point","coordinates":[-70.01667,48.95]}},{"type":"Feature","properties":{"POINT_ID":"PID_267","Name":"EPN","POINT_X":-76.08334,"POINT_Y":46.5,"N_05":784,"Clay05":205,"CoarseF05":101,"PHw05":50,"Sand05":376,"SOC05":878,"Silt05":419},"geometry":{"type":"Point","coordinates":[-76.08334,46.5]}},{"type":"Feature","properties":{"POINT_ID":"PID_268","Name":"EPN","POINT_X":-74.83334,"POINT_Y":46.58333,"N_05":691,"Clay05":163,"CoarseF05":67,"PHw05":51,"Sand05":419,"SOC05":1410,"Silt05":418},"geometry":{"type":"Point","coordinates":[-74.83334,46.58333]}},{"type":"Feature","properties":{"POINT_ID":"PID_269","Name":"EPN","POINT_X":-73.08334,"POINT_Y":48.58333,"N_05":648,"Clay05":207,"CoarseF05":149,"PHw05":53,"Sand05":379,"SOC05":784,"Silt05":414},"geometry":{"type":"Point","coordinates":[-73.08334,48.58333]}},{"type":"Feature","properties":{"POINT_ID":"PID_270","Name":"EPN","POINT_X":-78.75,"POINT_Y":48.91667,"N_05":562,"Clay05":146,"CoarseF05":77,"PHw05":61,"Sand05":534,"SOC05":497,"Silt05":320},"geometry":{"type":"Point","coordinates":[-78.75,48.91667]}},{"type":"Feature","properties":{"POINT_ID":"PID_271","Name":"EPN","POINT_X":-76.5,"POINT_Y":49.41667,"N_05":573,"Clay05":137,"CoarseF05":126,"PHw05":52,"Sand05":503,"SOC05":264,"Silt05":360},"geometry":{"type":"Point","coordinates":[-76.5,49.41667]}},{"type":"Feature","properties":{"POINT_ID":"PID_272","Name":"EPN","POINT_X":-72.46667,"POINT_Y":49.25,"N_05":583,"Clay05":247,"CoarseF05":117,"PHw05":52,"Sand05":330,"SOC05":567,"Silt05":423},"geometry":{"type":"Point","coordinates":[-72.46667,49.25]}},{"type":"Feature","properties":{"POINT_ID":"PID_273","Name":"EPN","POINT_X":-71.16666,"POINT_Y":47.5,"N_05":927,"Clay05":117,"CoarseF05":96,"PHw05":43,"Sand05":604,"SOC05":1563,"Silt05":279},"geometry":{"type":"Point","coordinates":[-71.16666,47.5]}},{"type":"Feature","properties":{"POINT_ID":"PID_274","Name":"EPN","POINT_X":-66.66666,"POINT_Y":48.58333,"N_05":663,"Clay05":221,"CoarseF05":104,"PHw05":45,"Sand05":447,"SOC05":766,"Silt05":332},"geometry":{"type":"Point","coordinates":[-66.66666,48.58333]}},{"type":"Feature","properties":{"POINT_ID":"PID_275","Name":"EPN","POINT_X":-73.41666,"POINT_Y":48.56667,"N_05":624,"Clay05":162,"CoarseF05":146,"PHw05":54,"Sand05":425,"SOC05":518,"Silt05":413},"geometry":{"type":"Point","coordinates":[-73.41666,48.56667]}}]};
+
+// ═══════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════
+const VAR_LABELS = {
+  N_05:      'N_05 — Azote total',
+  Clay05:    'Clay05 — Argile',
+  CoarseF05: 'CoarseF05 — Fractions grossières',
+  PHw05:     'PHw05 — pH eau',
+  Sand05:    'Sand05 — Sable',
+  SOC05:     'SOC05 — Carbone organique',
+  Silt05:    'Silt05 — Limon'
+};
+
+const PIG_COLOR = '#e07b39';
+const EPN_COLOR = '#3a7eca';
+
+// Palette arc-en-ciel saturée 6 stops : bleu → cyan → vert → jaune → orange → rouge
+function gradientColor(t) {
+  const stops = [
+    { t: 0.00, r:   0, g:   0, b: 255 },
+    { t: 0.20, r:   0, g: 220, b: 255 },
+    { t: 0.40, r:   0, g: 255, b:  50 },
+    { t: 0.60, r: 255, g: 230, b:   0 },
+    { t: 0.80, r: 255, g:  50, b:   0 },
+    { t: 1.00, r: 200, g:   0, b:  10 },
+  ];
+  t = Math.max(0, Math.min(1, t));
+  let i = 0;
+  while (i < stops.length - 2 && t > stops[i + 1].t) i++;
+  const a = stops[i], c = stops[i + 1];
+  const s = (t - a.t) / (c.t - a.t);
+  return `rgb(${Math.round(a.r+s*(c.r-a.r))},${Math.round(a.g+s*(c.g-a.g))},${Math.round(a.b+s*(c.b-a.b))})`;
+}
+
+// ═══════════════════════════════════════════════════
+//  ÉTAT
+// ═══════════════════════════════════════════════════
+let state = {
+  species:    'ALL',
+  variable:   '',
+  sliderMin:  null,
+  sliderMax:  null,
+  varGlobalMin: null,
+  varGlobalMax: null
+};
+
+// ═══════════════════════════════════════════════════
+//  CARTE
+// ═══════════════════════════════════════════════════
+const map = L.map('map', { zoomControl: true });
+
+L.tileLayer(
+  'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  {
+    attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
+    subdomains: 'abcd',
+    maxZoom: 19
+  }
+).addTo(map);
+
+// Couche points
+let circleLayer = L.layerGroup().addTo(map);
+
+// ═══════════════════════════════════════════════════
+//  SLIDER
+// ═══════════════════════════════════════════════════
+let slider = null;
+
+function buildSlider(min, max) {
+  const wrap = document.getElementById('range-slider');
+  if (slider) { slider.destroy(); slider = null; }
+  wrap.innerHTML = '';
+
+  slider = noUiSlider.create(wrap, {
+    start: [min, max],
+    connect: true,
+    step: 1,
+    range: { min, max },
+    tooltips: false
+  });
+
+  updateSliderDisplay(min, max);
+
+  slider.on('update', (values) => {
+    const lo = Math.round(parseFloat(values[0]));
+    const hi = Math.round(parseFloat(values[1]));
+    state.sliderMin = lo;
+    state.sliderMax = hi;
+    updateSliderDisplay(lo, hi);
+    renderPoints();
+  });
+}
+
+function updateSliderDisplay(lo, hi) {
+  document.getElementById('val-min').textContent = lo;
+  document.getElementById('val-max').textContent = hi;
+}
+
+// ═══════════════════════════════════════════════════
+//  RENDU POINTS
+// ═══════════════════════════════════════════════════
+function getVisibleFeatures() {
+  return GEOJSON_DATA.features.filter(f => {
+    const p = f.properties;
+    // Filtre espèce
+    if (state.species !== 'ALL' && p.Name !== state.species) return false;
+    // Filtre slider
+    if (state.variable && state.sliderMin !== null) {
+      const val = p[state.variable];
+      if (val < state.sliderMin || val > state.sliderMax) return false;
+    }
+    return true;
+  });
+}
+
+function renderPoints() {
+  circleLayer.clearLayers();
+
+  const features = getVisibleFeatures();
+  const hasVar   = !!state.variable;
+
+  // Stats
+  let nPIG = 0, nEPN = 0;
+  features.forEach(f => f.properties.Name === 'PIG' ? nPIG++ : nEPN++);
+  document.getElementById('stat-pig').textContent   = nPIG;
+  document.getElementById('stat-epn').textContent   = nEPN;
+  document.getElementById('stat-total').textContent = nPIG + nEPN;
+
+  features.forEach(f => {
+    const p    = f.properties;
+    const lon  = f.geometry.coordinates[0];
+    const lat  = f.geometry.coordinates[1];
+    const name = p.Name;
+
+    let fillColor;
+    if (hasVar) {
+      const val  = p[state.variable];
+      const gMin = state.varGlobalMin;
+      const gMax = state.varGlobalMax;
+      const t    = gMax > gMin ? (val - gMin) / (gMax - gMin) : 0.5;
+      fillColor  = gradientColor(t);
+    } else {
+      fillColor = name === 'PIG' ? PIG_COLOR : EPN_COLOR;
+    }
+
+    const circle = L.circleMarker([lat, lon], {
+      radius:      7,
+      fillColor,
+      color:       hasVar ? 'rgba(0,0,0,0.25)' : (name === 'PIG' ? '#b85e20' : '#2255a0'),
+      weight:      1,
+      fillOpacity: hasVar ? 1.0 : 0.88
+    });
+
+    // Tooltip
+    let ttContent;
+    if (hasVar) {
+      ttContent = `<div class="tt-id">${p.POINT_ID}</div>
+                   <div class="tt-name">${p.Name}</div>
+                   <div class="tt-val">${state.variable} : <span>${p[state.variable]}</span></div>`;
+    } else {
+      ttContent = `<div class="tt-id">${p.POINT_ID}</div>
+                   <div class="tt-name">${p.Name}</div>`;
+    }
+
+    circle.bindTooltip(ttContent, {
+      permanent: false,
+      direction: 'top',
+      offset: [0, -6]
+    });
+
+    circle.addTo(circleLayer);
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  CONTRÔLES
+// ═══════════════════════════════════════════════════
+document.getElementById('sel-species').addEventListener('change', function () {
+  state.species = this.value;
+  renderPoints();
+});
+
+document.getElementById('sel-var').addEventListener('change', function () {
+  const varName = this.value;
+  state.variable = varName;
+
+  const sliderSection   = document.getElementById('slider-section');
+  const gradLegend      = document.getElementById('gradient-legend');
+  const mapLegend       = document.getElementById('map-legend');
+
+  if (!varName) {
+    sliderSection.style.display  = 'none';
+    gradLegend.style.display     = 'none';
+    mapLegend.style.display      = 'block';
+    state.sliderMin = null;
+    state.sliderMax = null;
+    state.varGlobalMin = null;
+    state.varGlobalMax = null;
+    renderPoints();
+    return;
+  }
+
+  // Calculer min/max globaux sur l'ensemble des features (pas juste le filtre espèce)
+  // On exclut les 0 que l'on suspecte être des valeurs manquantes? Non, on garde tout.
+  const vals = GEOJSON_DATA.features.map(f => f.properties[varName]);
+  const gMin = Math.min(...vals);
+  const gMax = Math.max(...vals);
+
+  state.varGlobalMin = gMin;
+  state.varGlobalMax = gMax;
+  state.sliderMin    = gMin;
+  state.sliderMax    = gMax;
+
+  // Titre slider
+  document.getElementById('slider-title').textContent =
+    'Filtre 3 — Plage de valeurs : ' + varName;
+
+  // Afficher slider
+  sliderSection.style.display = 'block';
+  buildSlider(gMin, gMax);
+
+  // Légende gradient
+  mapLegend.style.display  = 'none';
+  gradLegend.style.display = 'block';
+  document.getElementById('grad-varname').textContent = VAR_LABELS[varName] || varName;
+  document.getElementById('grad-min').textContent     = gMin;
+  document.getElementById('grad-max').textContent     = gMax;
+  // Mettre à jour la barre de dégradé avec les bonnes couleurs
+  document.getElementById('grad-bar').style.background =
+    `linear-gradient(to right, ${gradientColor(0)}, ${gradientColor(1)})`;
+
+  renderPoints();
+});
+
+// ═══════════════════════════════════════════════════
+//  EXPORT CSV
+// ═══════════════════════════════════════════════════
+document.getElementById('btn-export').addEventListener('click', () => {
+  // Construire le nom par défaut : [Name]_[Variable]_[min]_[max]
+  const species  = state.species === 'ALL' ? 'PIG-EPN' : state.species;
+  const varPart  = state.variable ? `_${state.variable}_${state.sliderMin}_${state.sliderMax}` : '';
+  const defaultName = `${species}${varPart}`;
+  document.getElementById('export-filename').value = defaultName;
+  document.getElementById('export-modal').classList.add('open');
+  document.getElementById('export-filename').focus();
+});
+
+document.getElementById('btn-cancel').addEventListener('click', () => {
+  document.getElementById('export-modal').classList.remove('open');
+});
+
+document.getElementById('btn-dl').addEventListener('click', () => {
+  const filename = (document.getElementById('export-filename').value.trim() || 'selection_sites') + '.csv';
+  const features = getVisibleFeatures();
+
+  const header = ['point_id', 'Name', 'point_x', 'point_y'];
+  const rows = features.map(f => {
+    const p = f.properties;
+    return [p.POINT_ID, p.Name, p.POINT_X, p.POINT_Y].join(',');
+  });
+
+  const csv = [header.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  document.getElementById('export-modal').classList.remove('open');
+});
+
+// Fermer modal en cliquant hors de la boîte
+document.getElementById('export-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('open');
+});
+
+// ═══════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════
+renderPoints();
+
+// Centrer la carte sur les données
+const lats = GEOJSON_DATA.features.map(f => f.geometry.coordinates[1]);
+const lons = GEOJSON_DATA.features.map(f => f.geometry.coordinates[0]);
+const bounds = [[Math.min(...lats)-0.3, Math.min(...lons)-0.5],
+                [Math.max(...lats)+0.3, Math.max(...lons)+0.5]];
+map.fitBounds(bounds);
+
+</script>
+</body>
+</html>
