@@ -22,7 +22,7 @@ Les données de sol proviennent de la couche 0–5 cm et incluent sept variables
 - Slider double curseur pour filtrer les points selon une plage de valeurs
 
 **Carte**
-- Fond cartographique light gray (CARTO)
+- Fond cartographique OpenStreetMap (libre, sans clé API)
 - Info-bulle au survol : identifiant du point, espèce, et valeur de la variable si sélectionnée
 - Légende dynamique (espèces ou gradient selon le mode actif)
 
@@ -38,4 +38,4 @@ web/
 
 ## Technologies
 
-[Leaflet.js](https://leafletjs.com/) · [noUiSlider](https://refreshless.com/nouislider/) · CARTO Basemaps
+[Leaflet.js](https://leafletjs.com/) · [noUiSlider](https://refreshless.com/nouislider/) · OpenStreetMap

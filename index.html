@@ -513,10 +513,9 @@ VARS.forEach(v => { state.ranges[v.key] = [BOUNDS[v.key].min, BOUNDS[v.key].max]
 const map = L.map('map', { zoomControl: true });
 
 L.tileLayer(
-  'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   {
-    attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
-    subdomains: 'abcd',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     maxZoom: 19
   }
 ).addTo(map);
